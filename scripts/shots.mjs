@@ -16,13 +16,16 @@ try {
   await mkdir("design/current", { recursive: true });
   await waitForServer();
   const browser = await chromium.launch({ headless: true });
+  const routes = [["styleguide", "/styleguide"], ["home", "/j/piano"], ["skills", "/j/piano/skills"], ["goal", "/j/piano/goal"], ["new", "/new"]];
   for (const [name, width, height] of [["390", 390, 844], ["1280", 1280, 800]]) {
     for (const theme of ["light", "dark"]) {
-      const page = await browser.newPage({ viewport: { width, height }, colorScheme: theme, reducedMotion: "reduce" });
-      await page.goto(`http://127.0.0.1:${port}/styleguide`, { waitUntil: "networkidle" });
-      await page.evaluate((currentTheme) => { document.documentElement.dataset.theme = currentTheme; }, theme);
-      await page.screenshot({ path: `design/current/styleguide-${name}-${theme}.png`, fullPage: true });
-      await page.close();
+      for (const [routeName, route] of routes) {
+        const page = await browser.newPage({ viewport: { width, height }, colorScheme: theme, reducedMotion: "reduce" });
+        await page.goto(`http://127.0.0.1:${port}${route}`, { waitUntil: "networkidle" });
+        await page.evaluate((currentTheme) => { document.documentElement.dataset.theme = currentTheme; }, theme);
+        await page.screenshot({ path: `design/current/${routeName}-${name}-${theme}.png`, fullPage: true });
+        await page.close();
+      }
     }
   }
   await browser.close();
