@@ -33,3 +33,4 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS plan_item (
   id TEXT PRIMARY KEY,journey_id TEXT NOT NULL,date TEXT NOT NULL,title TEXT NOT NULL,
   why TEXT NOT NULL,blocks_json TEXT NOT NULL,status TEXT NOT NULL,requested_minutes INTEGER NOT NULL,created_at TEXT NOT NULL
 )`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS review (id TEXT PRIMARY KEY, journey_id TEXT NOT NULL, period_start TEXT NOT NULL, period_end TEXT NOT NULL, body_json TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(journey_id,period_start));`);

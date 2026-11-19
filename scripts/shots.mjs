@@ -1,9 +1,14 @@
-import { spawn } from "node:child_process";
-import { mkdir } from "node:fs/promises";
+import { spawn,execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { mkdir,mkdtemp,rm } from "node:fs/promises";
 import { chromium } from "playwright";
 
 const port = 3100;
-const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", process.env.SHOTS_PRODUCTION ? "start" : "dev", "-p", String(port)], { stdio: "ignore" });
+const temporary = await mkdtemp(join(tmpdir(),"marginalia-shots-"));
+const env = {...process.env,AI_PROVIDER:"stub",DATABASE_URL:join(temporary,"demo.db")};
+execFileSync(process.execPath,["scripts/seed-demo.mjs"],{env});
+const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", process.env.SHOTS_PRODUCTION ? "start" : "dev", "-p", String(port)], { stdio: "ignore",env });
 const waitForServer = async () => {
   for (let attempt = 0; attempt < 40; attempt += 1) {
     try { if ((await fetch(`http://127.0.0.1:${port}/styleguide`)).ok) return; } catch { /* wait */ }
@@ -16,7 +21,7 @@ try {
   await mkdir("design/current", { recursive: true });
   await waitForServer();
   const browser = await chromium.launch({ headless: true });
-  const routes = [["styleguide", "/styleguide"], ["home", "/j/piano"], ["log", "/j/piano/log"], ["plan", "/j/piano/plan"], ...(process.env.SHOTS_PLAN ? [["focus", `/j/piano/focus?plan=${process.env.SHOTS_PLAN}`]] : []), ...(process.env.SHOTS_REVIEW_ENTRY ? [["understood", `/j/piano/log?entry=${encodeURIComponent(process.env.SHOTS_REVIEW_ENTRY)}`]] : []), ["skills", "/j/piano/skills"], ["goal", "/j/piano/goal"], ["new", "/new"]];
+  const routes = [["styleguide", "/styleguide"], ["home", "/j/piano"], ["log", "/j/piano/log"], ["plan", "/j/piano/plan"], ["focus","/j/piano/focus?plan=piano-demo-plan"], ["understood","/j/piano/log?entry=piano-entry-1"], ["skills", "/j/piano/skills"], ["skill-drawer","/j/piano/skills?skill=piano-0"], ["journal","/j/piano/journal"], ["journal-reviews","/j/piano/journal?tab=reviews"], ["review","/j/piano/review/piano-demo-review"], ["goal", "/j/piano/goal"], ["new", "/new"]];
   for (const [name, width, height] of [["390", 390, 844], ["1280", 1280, 800]]) {
     for (const theme of ["light", "dark"]) {
       for (const [routeName, route] of routes) {
@@ -33,4 +38,5 @@ try {
   console.log("Styleguide screenshots written to design/current.");
 } finally {
   server.kill();
+  await rm(temporary,{recursive:true,force:true});
 }
