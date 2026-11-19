@@ -40,3 +40,6 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS rollup (
  id TEXT PRIMARY KEY,journey_id TEXT NOT NULL,period TEXT NOT NULL,period_start TEXT NOT NULL,summary TEXT NOT NULL,created_at TEXT NOT NULL,
  UNIQUE(journey_id,period,period_start)
 );`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS interview (
+  id TEXT PRIMARY KEY, revision INTEGER NOT NULL, body TEXT NOT NULL, completed INTEGER NOT NULL DEFAULT 0
+)`);

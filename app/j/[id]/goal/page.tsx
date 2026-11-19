@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {notFound,redirect} from "next/navigation";
 import {randomUUID} from "node:crypto";
+import {loadInterview} from "@/lib/db/interview";
 import {sqlite} from "@/lib/db/client";
 import {getJourneyView} from "@/lib/db/queries";
 import {Button} from "@/components/ui/button";
@@ -13,6 +14,7 @@ type Version={id:string;version:number;created_at:string}&Record<typeof fields[n
 export default async function Goal({params,searchParams}:PageProps<"/j/[id]/goal">) {
  const {id}=await params,query=await searchParams,view=await getJourneyView(id);
  if(!view)notFound();
+ const intake=loadInterview(id);
  const versions=sqlite.prepare("SELECT * FROM charter WHERE journey_id=? ORDER BY version DESC").all(id) as Version[];
  const current=versions[0];
  if(!current)notFound();
@@ -41,6 +43,7 @@ export default async function Goal({params,searchParams}:PageProps<"/j/[id]/goal
  }
  return <main className="journey document onboarding"><Link href={`/j/${id}`} className="back-link">Home</Link><h1>Goal</h1>
  {fields.map(([key,label])=><section key={key}><h2>{label}</h2>{display.id===current.id?<details><summary className="reading">{display[key]||"Add a detail"}</summary><form action={save}><input type="hidden" name="field" value={key}/><label>{label}<textarea name="value" maxLength={2000} defaultValue={display[key]??""}/></label><Button>Save change</Button></form></details>:<p className="reading">{display[key]||"—"}</p>}</section>)}
+ {intake?.completed && <details><summary>Initial assessment and interview notes</summary><p className="reading">{intake.state.summary}</p><small>{intake.state.source}</small>{intake.state.turns.map((turn,index)=><div key={index}><h3>{turn.question}</h3><p className="reading">{turn.answer}</p></div>)}</details>}
  <small>Version {display.version}, edited {display.created_at.slice(0,10)}</small>
  {display.id!==current.id&&<form action={save}><Button name="restore" value={display.id}>Restore this version</Button></form>}
  <nav className="cluster"><Link className="text-link" href={`${root}?history=1`}>Version history</Link><Link className="text-link" href={`${root}?confirm=paused`}>Pause journey</Link><Link className="text-link" href={`${root}?confirm=archived`}>Archive journey</Link></nav>

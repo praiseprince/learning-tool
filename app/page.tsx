@@ -21,6 +21,7 @@ export default function Home() {
     SELECT j.id, j.name, j.status, (SELECT goal FROM charter WHERE journey_id = j.id ORDER BY version DESC LIMIT 1) AS goal
     FROM journey j ORDER BY j.last_seen_at DESC, j.name COLLATE NOCASE
   `).all() as Journey[];
+  const drafts = sqlite.prepare("SELECT id,body FROM interview WHERE completed=0 ORDER BY rowid DESC").all() as {id:string;body:string}[];
   const active = journeys.filter(journey => journey.status === "active");
   const inactive = journeys.filter(journey => journey.status !== "active");
 
@@ -38,6 +39,7 @@ export default function Home() {
       <dl className="learning-stats">{[[activity.sessions, "Sessions"], [activity.minutes, "Minutes"], [activity.days, "Practice days"]].map(([value, label]) =>
         <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
     </section>
+    {drafts.length>0 && <section><h2>Continue an interview</h2>{drafts.map(draft=>{const state=JSON.parse(draft.body);return <Link className="course-row" key={draft.id} href={`/new?draft=${draft.id}`}>{state.title || state.turns[0]?.answer || "New notebook"}<ArrowUpRight size={22}/></Link>;})}</section>}
     <section><div className="dashboard-header"><h2>Your journeys</h2><Link href="/new" className="text-link"><Plus size={18} aria-hidden="true"/> New journey</Link></div>
       {active.length ? courseList(active) : <p className="reading">Start a journey for a course, a skill, or something you want to explore.</p>}
       {inactive.length > 0 && <details><summary>Paused and archived ({inactive.length})</summary>{courseList(inactive)}</details>}

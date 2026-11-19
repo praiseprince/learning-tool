@@ -101,3 +101,9 @@ body {padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-r
 .course-row svg {flex-shrink:0;}
 .learning-home .text-link {gap:var(--s-1);}
 .learning-home summary {cursor:pointer;padding:var(--s-3) 0;}
+.interview section,.interview details {margin-top:var(--s-6);border-top:1px solid var(--rule);padding-top:var(--s-4);}
+.interview textarea,.interview p,.interview h1 {overflow-wrap:anywhere;}
+.interview summary {min-height:44px;cursor:pointer;}
+.interview .interview-hue {display:grid;place-items:center;min-height:44px;min-width:44px;cursor:pointer;}
+.interview-hue input {appearance:none;width:var(--s-5);height:var(--s-5);border-radius:50%;background:oklch(.85 .13 var(--swatch));}
+.interview-hue input:checked {outline:2px solid var(--ink);outline-offset:2px;}
