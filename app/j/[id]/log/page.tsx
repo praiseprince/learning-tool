@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { randomUUID } from "node:crypto";
 import { format, parseISO, isValid } from "date-fns";
+import { findPlan } from "@/lib/db/plans";
 import { EntryReview } from "@/components/features/entry-review";
 import { ReviewSheet } from "@/components/features/review-sheet";
 import { getJourney } from "@/lib/db/queries";
@@ -13,6 +14,7 @@ export default async function Log({ params, searchParams }: PageProps<"/j/[id]/l
   const journey = await getJourney(id);
   if (!journey) notFound();
   const query = await searchParams;
+  const plan=findPlan(id,query.plan);
   const reviewId = typeof query.entry === "string" ? query.entry : "";
   const review = sqlite.prepare("SELECT e.id,p.status FROM log_entry e LEFT JOIN proposal p ON p.source_ref=e.id AND p.kind='extraction' WHERE e.journey_id=? AND e.id=? AND e.kind!='rest'").get(id,reviewId) as {id:string;status?:string}|undefined;
   const changes = review?.status === "applied" ? sqlite.prepare(`SELECT s.name,v.level_after AS level,v.delta FROM skill_event v JOIN skill s ON s.id=v.skill_id WHERE v.entry_id=? AND v.delta!=0 ORDER BY v.rowid`).all(review.id) as {name:string;level:number;delta:number}[] : [];
@@ -46,8 +48,8 @@ export default async function Log({ params, searchParams }: PageProps<"/j/[id]/l
     <h1>Log a session</h1>
     <form action={save}>
       <label>Session date<input type="date" name="date" required defaultValue={format(new Date(),"yyyy-MM-dd")} max={format(new Date(),"yyyy-MM-dd")} /></label>
-      <label>What did you do?<textarea name="note" required maxLength={8000} placeholder="What clicked, or where did you get stuck?" /></label>
-      <label>Minutes (optional)<input name="minutes" type="number" min="0" max="600" /></label>
+      <label>What did you do?<textarea defaultValue={plan?.blocks.map(block=>block.title).join(", ")} name="note" required maxLength={8000} placeholder="What clicked, or where did you get stuck?" /></label>
+      <label>Minutes (optional)<input defaultValue={plan?.blocks.reduce((sum,b)=>sum+b.minutes,0)} name="minutes" type="number" min="0" max="600" /></label>
       <label>Energy<select name="energy" defaultValue=""><option value="">Unspecified</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
       <Button>Save entry</Button>
       <Button variant="ghost" name="kind" value="rest" formNoValidate>Log a rest day</Button>

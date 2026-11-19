@@ -50,3 +50,4 @@
 @keyframes result-stroke { from {width:var(--before);} to {width:var(--after);} }
 @keyframes result-wipe { from {background-size:0% 60%;} to {background-size:100% 60%;} }
 @media (prefers-reduced-motion:reduce) { .marking-result * {animation-delay:0ms!important;} }
+.focus-clock { margin:var(--s-7) 0; text-align:center; font-size:clamp(3rem,12vw,5rem); font-variant-numeric:tabular-nums; }

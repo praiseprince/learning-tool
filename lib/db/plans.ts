@@ -45,3 +45,9 @@ export function storePlan(journey:string,plan:Plan,source:string) {
   sqlite.prepare("INSERT INTO plan_item VALUES (?,?,?,?,?,?,'planned',?,?)").run(id,journey,format(now,"yyyy-MM-dd"),plan.title,plan.why,JSON.stringify(plan.blocks),minutes,now.toISOString());
   return id;
 }
+
+export function findPlan(journey:string,id:unknown) {
+  if (typeof id !== "string") return null;
+  const row=sqlite.prepare("SELECT i.id,i.status,p.diff_json FROM plan_item i JOIN proposal p ON p.id=i.id WHERE i.journey_id=? AND i.id=? AND i.status!='undone'").get(journey,id) as {id:string;status:string;diff_json:string}|undefined;
+  return row ? {id:row.id,status:row.status,...schema.parse(JSON.parse(row.diff_json))} : null;
+}
