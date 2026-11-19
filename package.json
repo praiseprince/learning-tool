@@ -15,9 +15,13 @@
     "db:generate": "drizzle-kit generate",
     "evals": "node evals/logs.mjs",
     "preshots": "npm run build",
-    "local": "node scripts/local.mjs"
+    "local": "node scripts/local.mjs",
+    "seed:showcase": "node scripts/seed-showcase.mjs",
+    "local:prod": "next build && node scripts/local.mjs --prod",
+    "test": "node --import tsx --test \"tests/*.test.mts\""
   },
   "dependencies": {
+    "@types/three": "^0.187.0",
     "@xyflow/react": "13.0.2",
     "better-sqlite3": "^13.2.0",
     "date-fns": "^4.4.0",
@@ -27,11 +31,14 @@
     "next": "16.4.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "react-force-graph-3d": "^1.29.2",
     "react-markdown": "10.1.0",
     "rehype-katex": "7.0.1",
     "rehype-sanitize": "6.0.0",
     "remark-gfm": "4.0.1",
     "remark-math": "6.0.0",
+    "three": "^0.187.0",
+    "three-spritetext": "^1.10.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

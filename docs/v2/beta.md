@@ -11,11 +11,11 @@ The release target is one learner on a trusted network. Run `npm run local` afte
 | Inspect an included concept | The Guide browser test filters the Atlas to the approved route and opens Hegelian dialectics. |
 | Research directions and a time limit | The Guide browser test asks for a search direction, relevance and a 20-minute activity. The stub supplies search terms. Live outputs depend on the installed Codex account. |
 | Markdown, math, exact source and export | `node evals/v2/notebook-browser.mjs` exercises the editor, malformed math, export and independent review. `node evals/v2/notebook.mjs` checks stable links after a rename and conflicts between revisions. |
-| Cross-journey connections | `node scripts/shots-v2.mjs` uses piano, physics and running. It accepts the proposed harmonics connection and checks running separately. |
+| Cross-journey connections | Review proposed connections in the Notes inbox. (The old scripted check went with the removed /guide screens.) |
 | Dated graph history | `node evals/v2/bridges.mjs` checks an earlier date, accepted and dismissed states, aliases, merge and undo. |
 | Provider unavailable | The notebook browser test substitutes a failing Codex executable and reads the saved revision back. Manual route drafts work with the provider unavailable. |
 | Upgrade, restore and erase | `node evals/v2/release.mjs` upgrades a disposable V1 database, verifies original IDs and text, compares restored V2 table contents, and tests deletion on that fixture. |
-| Responsive layouts and large graphs | Build, run `node scripts/shots-v2.mjs`, then `node scripts/atlas-scale-check.mjs`. Screenshots cover both themes. The largest graph has 1,000 nodes and 3,000 relations. |
+| Responsive layouts and large graphs | Build, run `npm run shots`, then `node scripts/atlas-scale-check.mjs`. Screenshots cover both themes. The largest graph has 1,000 nodes and 3,000 relations. |
 
 The tablet check uses Chromium touch emulation at 768 × 1024. A separate startup test fetched the Guide via the laptop’s Wi-Fi address. A physical iPad and a remotely deployed identity policy were outside this verification.
 
