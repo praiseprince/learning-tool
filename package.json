@@ -17,6 +17,7 @@
     "preshots": "npm run build"
   },
   "dependencies": {
+    "@xyflow/react": "13.0.2",
     "better-sqlite3": "^13.2.0",
     "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.4",

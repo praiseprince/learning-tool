@@ -4,7 +4,7 @@ import Link from "next/link";
 import {House,BookOpen,PenLine,ChartNoAxesColumn,UserRound} from "lucide-react";
 export function JourneyShell({journey,name,hue,children}:{journey:string;name:string;hue:number;children:React.ReactNode}) {
  const path=usePathname(),root=`/j/${journey}`;
- if(path.endsWith("/focus"))return children;
+ if(path.endsWith("/focus") || path.endsWith("/atlas"))return children;
  const items=[
   {name:"Home",href:"/",icon:House},{name:"Journal",href:root+"/journal",icon:BookOpen},{name:"Log",href:root+"/log",icon:PenLine},
   {name:"Skills",href:root+"/skills",icon:ChartNoAxesColumn},{name:"You",href:"/you",icon:UserRound}

@@ -1,3 +1,4 @@
+import { v2Enabled } from "@/lib/v2/flag";
 import Link from "next/link";
 import { ArrowUpRight, Plus } from "lucide-react";
 import { format, startOfWeek } from "date-fns";
@@ -33,7 +34,7 @@ export default function Home() {
   }
 
   return <main className="learning-home">
-    <header className="dashboard-header"><strong>Marginalia</strong><Link className="text-link" href="/you">You</Link></header>
+    <header className="dashboard-header"><strong>Marginalia</strong>{v2Enabled()&&<Link className="text-link" href="/atlas">Open atlas</Link>}<Link className="text-link" href="/you">You</Link></header>
     <h1>Your learning</h1>
     <section aria-labelledby="week-heading"><h2 id="week-heading">This week</h2>
       <dl className="learning-stats">{[[activity.sessions, "Sessions"], [activity.minutes, "Minutes"], [activity.days, "Practice days"]].map(([value, label]) =>
