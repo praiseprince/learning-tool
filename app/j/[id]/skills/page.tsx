@@ -1,3 +1,4 @@
+import {Prerequisites,prerequisites} from "@/components/features/prerequisites";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getJourneyView } from "@/lib/db/queries";
@@ -21,7 +22,8 @@ export default async function Skills({ params,searchParams }: PageProps<"/j/[id]
  const selected=skills.find(s=>s.id===query.skill);
  return <main className="journey" style={{"--hue":view.journey.hue} as React.CSSProperties}><Link className="back-link" href={`/j/${id}`}>Home</Link><h1>Skills</h1>
  <p className="reading">{skills.length} skills, {skills.filter(s=>s.moved).length} moved since you last looked.</p>
- {skills.map(skill=><Link key={skill.id} href={`${root}?skill=${skill.id}`} className="skill-link"><SkillRow name={skill.name} level={skill.level} evidence={skill.evidence} moved={skill.moved}/></Link>)}
+ <Link className="text-link" href={query.graph==="1"?root:`${root}?graph=1`}>{query.graph==="1"?"Skills list":"View prerequisites"}</Link>
+ {query.graph==="1"?<Prerequisites skills={skills} root={root}/>:skills.map(skill=><Link key={skill.id} href={`${root}?skill=${skill.id}`} className="skill-link"><SkillRow name={skill.name} level={skill.level} evidence={skill.evidence} moved={skill.moved}/></Link>)}
  <Link className="text-link" href={`${root}?new=1`}>Add a skill</Link>
  {(selected || query.new==="1")&&<ReviewSheet home={root}><h2>{selected?.name||"Add a skill"}</h2>
  {selected&&<><p>{selected.evidence==="penciled"?"Penciled in":selected.evidence==="building"?"Building":"Inked"}. {new Set(selected.history.filter(e=>e.entry_id&&now-Date.parse(e.at)<=30*86400000).map(e=>e.entry_id)).size} entries in the last 30 days.</p>
@@ -29,5 +31,6 @@ export default async function Skills({ params,searchParams }: PageProps<"/j/[id]
  {selected.history.filter(e=>e.entry_id).slice(-5).reverse().map(e=><p key={e.id} className="reading-small"><Link href={`/j/${id}/journal?entry=${e.entry_id}`}>{e.at.slice(0,10)}</Link> · {e.evidence_quote}</p>)}</>}
  <form className="review-form" action={saveSkill.bind(null,id,selected?.id??null)}><label>Name <input name="name" required maxLength={100} defaultValue={selected?.name}/></label>
  <fieldset><legend>Level</legend><div className="cluster">{[0,1,2,3,4,5].map(n=><label key={n}><input type="radio" name="level" value={n} defaultChecked={n===(selected?.level??0)}/>{n}</label>)}</div></fieldset>
+ <details><summary>Prerequisites</summary>{skills.filter(s=>s.id!==selected?.id).map(s=><label key={s.id}><input type="checkbox" name="prerequisite" value={s.id} defaultChecked={prerequisites(selected?.prereqIds??"[]").includes(s.id)}/>{s.name}</label>)}</details>
  <label>Notes<textarea name="note" maxLength={1000} defaultValue={selected?.description??""}/></label><Button>Save skill</Button>{selected&&<Button variant="ghost" name="intent" value="archive">Archive skill</Button>}</form></ReviewSheet>}</main>;
 }

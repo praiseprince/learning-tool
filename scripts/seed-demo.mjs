@@ -13,7 +13,7 @@ db.transaction(() => {
   for (const table of ["entry_time","extraction_answer","log_extraction"]) {
     db.exec(`DELETE FROM ${table} WHERE entry_id IN (SELECT id FROM log_entry WHERE journey_id IN ('piano','physics'))`);
   }
-  for (const table of ["review","proposal","plan_item","state_snapshot", "log_entry", "skill", "charter"]) {
+  for (const table of ["rollup","review","proposal","plan_item","state_snapshot", "log_entry", "skill", "charter"]) {
     db.prepare(`DELETE FROM ${table} WHERE journey_id IN ('piano','physics')`).run();
   }
   db.prepare("DELETE FROM journey WHERE id IN ('piano','physics')").run();
@@ -32,6 +32,7 @@ add("physics","Physics","science",215,"Understand motion from first principles."
         rest ? "rest" : "practice", format(date, "yyyy-MM-dd"), date.toISOString());
     });
   }
+  db.prepare("UPDATE skill SET prereq_ids_json=? WHERE id='piano-8'").run(JSON.stringify(["piano-5","piano-6"]));
   const insertEvent=db.prepare("INSERT INTO skill_event VALUES (?,?,?,?,?,?,?)");
   for (const [skill,indices] of [[0,[1,9,14]],[1,[0,8]],[5,[2,7,15]],[11,[10]]]) {
     for(const [step,index] of indices.entries()) {

@@ -1,3 +1,4 @@
+import {PracticeReminder} from "@/components/features/practice-reminder";
 import {preferences} from "@/lib/db/personal";
 import {AppPreferences} from "@/components/features/app-preferences";
 import type { Metadata,Viewport } from "next";
@@ -12,5 +13,5 @@ export const dynamic="force-dynamic";
 export const viewport:Viewport={viewportFit:"cover",width:"device-width",initialScale:1};
 export default function RootLayout({children}:LayoutProps<"/">) {
  const {theme}=preferences();
- return <html lang="en" data-theme={theme} className={`${ui.variable} ${reading.variable}`}><body><AppPreferences theme={theme}/>{children}</body></html>;
+ return <html lang="en" data-theme={theme} className={`${ui.variable} ${reading.variable}`}><body><AppPreferences theme={theme}/>{children}<PracticeReminder/></body></html>;
 }

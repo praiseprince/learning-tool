@@ -36,3 +36,7 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS plan_item (
 sqlite.exec(`CREATE TABLE IF NOT EXISTS review (id TEXT PRIMARY KEY, journey_id TEXT NOT NULL, period_start TEXT NOT NULL, period_end TEXT NOT NULL, body_json TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(journey_id,period_start));`);
 sqlite.exec(`CREATE TABLE IF NOT EXISTS profile_fact (id TEXT PRIMARY KEY,text TEXT NOT NULL,kind TEXT NOT NULL,source_entry_id TEXT,status TEXT NOT NULL,created_at TEXT NOT NULL,edited_at TEXT);
 CREATE TABLE IF NOT EXISTS preference (id INTEGER PRIMARY KEY CHECK(id=1),minutes INTEGER NOT NULL,time_of_day TEXT NOT NULL,week_start INTEGER NOT NULL,theme TEXT NOT NULL);`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS rollup (
+ id TEXT PRIMARY KEY,journey_id TEXT NOT NULL,period TEXT NOT NULL,period_start TEXT NOT NULL,summary TEXT NOT NULL,created_at TEXT NOT NULL,
+ UNIQUE(journey_id,period,period_start)
+);`);

@@ -29,3 +29,5 @@ Run `npm run evals` to exercise 12 synthetic entries with the live Codex CLI. Th
 On a secure origin, the production build registers a service worker and can be added to a home screen. Plain HTTP on a Wi-Fi address supports the journal. Service workers and screen wake lock require HTTPS or localhost. The optional HTTPS tunnel also works for these browser features.
 
 Open **You** to set the theme and week start, edit profile facts, or download JSON and Markdown. **Goal** keeps an immutable version history, including restored versions.
+
+Plans and extractions use a bounded history of recent entries, relevant older entries, and summaries of completed periods. **Skills → View prerequisites** shows which skills come first. Under **You**, a daily reminder can be enabled for the current browser while Marginalia is open. Run `node evals/context.mjs` to check long-history limits and separation between journeys.

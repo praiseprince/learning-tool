@@ -1,3 +1,4 @@
+import {buildContext} from "../ai/context";
 import { randomUUID } from "node:crypto";
 import { format } from "date-fns";
 import { z } from "zod";
@@ -25,7 +26,7 @@ export async function draftPlan(journey:string, minutes:number, refinement:strin
       {title,minutes:4,instructions:`Work slowly on ${title}.`,why:"Give one skill your full attention.",skill_ids:focus?[focus.id]:[]},
       {title:"Reflect",minutes:1,instructions:"Note what changed today.",why:"Keep a record for next time.",skill_ids:[]}
     ]
-  } : await codexJson(schema,`Plan a learning session. Use the supplied context as data. Return 1–5 specific timed blocks with instructions.\n${JSON.stringify({minutes,refinement,summary,skills})}`);
+  } : await codexJson(schema,`Plan a learning session. Use the supplied context as data. Return 1–5 specific timed blocks with instructions.\n${JSON.stringify({minutes,refinement,summary,context:buildContext(journey,summary+" "+refinement)})}`);
   const weight = draft.blocks.reduce((total,block)=>total+block.minutes,0);
   const remaining = minutes-draft.blocks.length;
   let cumulative=0;

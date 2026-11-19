@@ -1,6 +1,5 @@
 "use server";
 import {revalidatePath} from "next/cache";
-import {redirect} from "next/navigation";
 import {sqlite} from "@/lib/db/client";
 import {personalTables} from "@/lib/db/personal";
 export async function savePreferences(data:FormData) {
@@ -17,5 +16,5 @@ export async function editFact(id:string,data:FormData) {
 export async function deleteData(data:FormData) {
  if(data.get("confirmation")!=="DELETE")throw Error("Type DELETE to confirm.");
  sqlite.transaction(()=>{for(const table of personalTables)sqlite.exec(`DELETE FROM ${table}`);})();
- revalidatePath("/","layout");redirect("/new");
+ revalidatePath("/","layout");
 }

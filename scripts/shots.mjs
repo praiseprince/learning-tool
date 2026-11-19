@@ -21,7 +21,7 @@ try {
   await mkdir("design/current", { recursive: true });
   await waitForServer();
   const browser = await chromium.launch({ headless: true });
-  const routes = [["styleguide", "/styleguide"], ["home", "/j/piano"], ["log", "/j/piano/log"], ["plan", "/j/piano/plan"], ["focus","/j/piano/focus?plan=piano-demo-plan"], ["understood","/j/piano/log?entry=piano-entry-1"], ["skills", "/j/piano/skills"], ["skill-drawer","/j/piano/skills?skill=piano-0"], ["journal","/j/piano/journal"], ["journal-reviews","/j/piano/journal?tab=reviews"], ["review","/j/piano/review/piano-demo-review"], ["goal", "/j/piano/goal"], ["you","/you"], ["new", "/new"], ["new-questions","/new"], ["new-draft","/new"], ["journeys","/j/piano?journeys=1"]];
+  const routes = [["styleguide", "/styleguide"], ["home", "/j/piano"], ["log", "/j/piano/log"], ["plan", "/j/piano/plan"], ["focus","/j/piano/focus?plan=piano-demo-plan"], ["understood","/j/piano/log?entry=piano-entry-1"], ["skills", "/j/piano/skills"], ["prerequisites","/j/piano/skills?graph=1"], ["skill-drawer","/j/piano/skills?skill=piano-0"], ["journal","/j/piano/journal"], ["journal-reviews","/j/piano/journal?tab=reviews"], ["review","/j/piano/review/piano-demo-review"], ["goal", "/j/piano/goal"], ["you","/you"], ["new", "/new"], ["new-questions","/new"], ["new-draft","/new"], ["journeys","/j/piano?journeys=1"]];
   for (const [name, width, height] of [["390", 390, 844], ["1280", 1280, 800]]) {
     for (const theme of ["light", "dark"]) {
       for (const [routeName, route] of routes) {
