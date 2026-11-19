@@ -15,3 +15,11 @@ With Marginalia listening on port 3000 and cloudflared installed, run `npm run t
 ## Development
 
 Run `npm run lint` and `npm run build` to check the application. Journey drafting currently uses a local stub.
+
+## Learning entries and stats
+
+Open a journey and choose **Log a session** under **This week**. Practice entries contribute to session count, distinct practice days and recorded minutes. Rest days appear in the weekly activity view. Minutes accepted during review count toward totals. Undo restores the previous values.
+
+Session extraction defaults to the installed Codex CLI. Run `codex login status` under the account starting Marginalia to check authentication. Codex processes the entry and the journey’s skill list using that account. Set `AI_PROVIDER=stub` to run extraction locally without model calls. Journey onboarding still uses the stub.
+
+Run `npm run evals` to exercise 12 synthetic entries with the live Codex CLI. This uses the authenticated account’s model allowance.

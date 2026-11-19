@@ -14,3 +14,15 @@ CREATE TABLE IF NOT EXISTS log_entry (id TEXT PRIMARY KEY, journey_id TEXT NOT N
 CREATE TABLE IF NOT EXISTS state_snapshot (id TEXT PRIMARY KEY, journey_id TEXT NOT NULL, summary TEXT NOT NULL, changed_phrases_json TEXT NOT NULL DEFAULT '[]', source_entry_id TEXT, user_edited_at TEXT, created_at TEXT NOT NULL);`);
 export const db = drizzle(sqlite);
 export { sqlite };
+
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS log_extraction (
+    entry_id TEXT PRIMARY KEY, status TEXT NOT NULL, json TEXT, created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS proposal (
+    id TEXT PRIMARY KEY, journey_id TEXT NOT NULL, kind TEXT NOT NULL, diff_json TEXT NOT NULL,
+    status TEXT NOT NULL, source_ref TEXT NOT NULL, created_at TEXT NOT NULL, resolved_at TEXT
+  );
+`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS entry_time (entry_id TEXT PRIMARY KEY, minutes INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS skill_event (id TEXT PRIMARY KEY, skill_id TEXT NOT NULL, entry_id TEXT NOT NULL, level_after INTEGER NOT NULL, delta INTEGER NOT NULL, evidence_quote TEXT NOT NULL, at TEXT NOT NULL);`);
