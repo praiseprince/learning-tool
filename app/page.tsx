@@ -41,7 +41,7 @@ export default function Home() {
         <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
     </section>
     {drafts.length>0 && <section><h2>Continue an interview</h2>{drafts.map(draft=>{const state=JSON.parse(draft.body);return <Link className="course-row" key={draft.id} href={`/new?draft=${draft.id}`}>{state.title || state.turns[0]?.answer || "New notebook"}<ArrowUpRight size={22}/></Link>;})}</section>}
-    <section><div className="dashboard-header"><h2>Your journeys</h2><Link href="/new" className="text-link"><Plus size={18} aria-hidden="true"/> New journey</Link></div>
+    <section><div className="dashboard-header"><h2>Your journeys</h2><Link href={v2Enabled()?"/guide":"/new"} className="text-link"><Plus size={18} aria-hidden="true"/> New journey</Link></div>
       {active.length ? courseList(active) : <p className="reading">Start a journey for a course, a skill, or something you want to explore.</p>}
       {inactive.length > 0 && <details><summary>Paused and archived ({inactive.length})</summary>{courseList(inactive)}</details>}
     </section>

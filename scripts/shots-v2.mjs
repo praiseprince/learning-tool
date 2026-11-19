@@ -14,7 +14,7 @@ try{
  await mkdir("design/current/v2",{recursive:true});
  for(const [width,height] of [[390,844],[768,1024],[1280,800],[1440,900]])for(const theme of ["light","dark"]){
   const page=await browser.newPage({...(width===768?devices["iPad (gen 7)"]:{}),viewport:{width,height},colorScheme:theme,reducedMotion:"reduce"});
-  for(const [name,route] of [["global","/atlas"],["history","/atlas/history"],["notebook","/notebook"],["inbox","/notebook/inbox"],["local","/j/piano/atlas"],["node","/atlas/n/legacy-piano-0"]]){
+  for(const [name,route] of [["guide","/guide"],["global","/atlas"],["history","/atlas/history"],["notebook","/notebook"],["inbox","/notebook/inbox"],["local","/j/piano/atlas"],["node","/atlas/n/legacy-piano-0"]]){
    const response=await page.goto(base+route,{waitUntil:"domcontentloaded"});
    if(response.status()!==200)throw Error(`${route} returned ${response.status()}`);
    await page.getByRole("heading",{level:1}).waitFor();

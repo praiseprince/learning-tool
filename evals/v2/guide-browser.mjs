@@ -1,0 +1,37 @@
+import assert from "node:assert/strict";
+import {mkdtemp,rm} from "node:fs/promises";
+import {join} from "node:path";
+import {tmpdir} from "node:os";
+import {spawn} from "node:child_process";
+import {chromium} from "playwright";
+const dir=await mkdtemp(join(tmpdir(),"guide-browser-"));
+const port=3196,base="http://127.0.0.1:"+port;
+const server=spawn(process.execPath,["node_modules/next/dist/bin/next","start","-H","127.0.0.1","-p",String(port)],{stdio:"ignore",env:{...process.env,MARGINALIA_V2:"1",AI_PROVIDER:"stub",DATABASE_URL:join(dir,"guide.db")}});
+const browser=await chromium.launch();
+try{
+ const page=await browser.newPage();
+ for(let i=0;i<60;i++){try{if((await fetch(base+"/guide")).ok)break;}catch{}await new Promise(r=>setTimeout(r,150));}
+ await page.goto(base+"/guide");
+ await page.getByLabel("What would you like to learn?").fill("Understand Marx’s philosophy");
+ await page.getByRole("button",{name:"Start a conversation"}).click();
+ await page.getByLabel("Your answer").fill("Explain his method to a friend.");
+ await page.getByRole("button",{name:"Continue interview"}).click();
+ await page.getByText("What have you tried already",{exact:false}).waitFor();
+ await page.reload();
+ await page.getByLabel("Your answer").fill("I have read a short introduction.");
+ await page.getByRole("button",{name:"Continue interview"}).click();
+ await page.getByText("What time, materials",{exact:false}).waitFor();
+ await page.getByRole("button",{name:"Draft my route now"}).click();
+ await page.getByLabel("What success looks like").fill("Explain the method using a passage.");
+ await page.getByRole("button",{name:"Approve charter and route"}).click();
+ await page.getByRole("link",{name:"Hegelian dialectics"}).waitFor();
+ await page.getByLabel("Your answer").fill("I have 20 minutes");
+ await page.getByRole("button",{name:"Ask the Guide"}).click();
+ await page.getByText(/Allow about 15 minutes/).waitFor();
+ await page.getByRole("link",{name:"View route in Atlas"}).click();
+ await page.getByRole("button",{name:"Show outline"}).click();
+ assert.equal(await page.locator(".v2-outline li").count(),3);
+ await page.getByRole("link",{name:"Hegelian dialectics"}).click();
+ await page.getByRole("heading",{name:"Hegelian dialectics"}).waitFor();
+ console.log("Resumed interview, edited charter, approved route, timed guidance and Atlas overlay passed.");
+}finally{await browser.close();server.kill();await rm(dir,{recursive:true,force:true});}
