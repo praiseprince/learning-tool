@@ -6,7 +6,7 @@ export function JourneyShell({journey,name,hue,children}:{journey:string;name:st
  const path=usePathname(),root=`/j/${journey}`;
  if(path.endsWith("/focus"))return children;
  const items=[
-  {name:"Home",href:root,icon:House},{name:"Journal",href:root+"/journal",icon:BookOpen},{name:"Log",href:root+"/log",icon:PenLine},
+  {name:"Home",href:"/",icon:House},{name:"Journal",href:root+"/journal",icon:BookOpen},{name:"Log",href:root+"/log",icon:PenLine},
   {name:"Skills",href:root+"/skills",icon:ChartNoAxesColumn},{name:"You",href:"/you",icon:UserRound}
  ];
  return <div className="journey-shell" style={{"--hue":hue} as React.CSSProperties}><nav aria-label="Main navigation" className="journey-nav">

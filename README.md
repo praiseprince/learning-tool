@@ -4,7 +4,7 @@ Marginalia is a personal learning journal. Journeys and entries live in SQLite o
 
 ## Run on Wi-Fi
 
-After installing dependencies with `npm ci`, run `npm run dev:lan` from the repository. Keep the terminal open. On an iPad connected to the same Wi-Fi, open the Network address printed by Next.js and visit `/new` to create a journey. The root route opens your most recently viewed active journey or onboarding.
+After installing dependencies with `npm ci`, run `npm run dev:lan` from the repository. Keep the terminal open. On an iPad connected to the same Wi-Fi, open the Network address printed by Next.js and visit `/new` to create a journey. The root route opens your learning dashboard with weekly practice totals and a list of journeys.
 
 For production, run `npm run build` once after source changes and use `npm run start:lan` to launch the built app.
 
