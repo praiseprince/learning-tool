@@ -2,7 +2,6 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { draftPlan, latestPlan, storePlan } from "./plans";
 import { sqlite } from "./client";
 import { LogExtraction } from "../ai/extraction";
 
@@ -13,9 +12,7 @@ export async function resolveExtraction(entry: string, data: FormData) {
   if (!proposal) throw Error("Suggestion unavailable.");
   const now = new Date().toISOString();
   const applying = proposal.status === "pending" && !["undo","dismiss"].includes(String(data.get("intent")));
-  const previous = latestPlan(proposal.journey_id);
-  const minutes = previous?.blocks.reduce((sum,block)=>sum+block.minutes,0) ?? 30;
-  const plan = applying ? await draftPlan(proposal.journey_id,minutes,"",data.has("state") ? String(data.get("summary") ?? "").slice(0,240) : "") : null;
+  void applying; // the next session is planned only when you ask for it, so confirming a log is instant
   sqlite.transaction(() => {
     const live = sqlite.prepare("SELECT status,diff_json FROM proposal WHERE id=?").get(proposal.id) as {status:string;diff_json:string};
     if (live.status !== proposal.status || live.diff_json !== proposal.diff_json) return;
@@ -67,6 +64,10 @@ export async function resolveExtraction(entry: string, data: FormData) {
       } else if (!suggestion.skill_id && suggestion.new_skill_name) {
         created.push(id);
         sqlite.prepare("INSERT INTO skill (id,journey_id,name,level,created_at,updated_at) VALUES (?,?,?,?,?,?)").run(id,proposal.journey_id,suggestion.new_skill_name,level,now,now);
+        try { // a new skill also appears on the Map
+          sqlite.prepare("INSERT OR IGNORE INTO atlas_node VALUES (?,?,?,?,?,?)").run("legacy-"+id,suggestion.new_skill_name,"skill","","user",id);
+          sqlite.prepare("INSERT OR IGNORE INTO atlas_membership VALUES (?,?)").run("legacy-"+id,proposal.journey_id);
+        } catch { /* the map tables are created on first visit; the skill itself is saved */ }
       } else return;
       sqlite.prepare("INSERT INTO skill_event VALUES (?,?,?,?,?,?,?)").run(randomUUID(),id,entry,level,level-(old?.level??0),suggestion.evidence_quote,now);
     });
@@ -77,9 +78,8 @@ export async function resolveExtraction(entry: string, data: FormData) {
         sqlite.prepare("INSERT INTO state_snapshot (id,journey_id,summary,source_entry_id,created_at) VALUES (?,?,?,?,?)").run(snapshot,proposal.journey_id,summary,entry,now);
       }
     }
-    const planId = plan ? storePlan(proposal.journey_id,plan,entry) : null;
+    const planId = null;
     sqlite.prepare("UPDATE proposal SET status='applied',diff_json=?,resolved_at=? WHERE id=?").run(JSON.stringify({extraction,before,created,snapshot,planId}),now,proposal.id);
   })();
-  revalidatePath(`/j/${proposal.journey_id}/log`);
-  revalidatePath(`/j/${proposal.journey_id}`);
+  revalidatePath("/", "layout");
 }

@@ -8,9 +8,11 @@ import {requireV2} from "@/lib/v2/access";
 import {ensureNotebook,storeDocument,revisionById} from "@/lib/v2/notebook";
 import {extractRevision,observationSuggestion} from "@/lib/v2/extract";
 import {event} from "@/lib/v2/atlas";
+import {refine, REFINE_MAX} from "@/lib/v2/refine";
 export async function newNote(data:FormData){
  requireV2();const id=randomUUID();
- const result=storeDocument({id,base:null,title:String(data.get("title")||"Untitled note"),body:String(data.get("body")||""),kind:String(data.get("kind")||"note"),source:String(data.get("source")||""),journey:null});
+ const goal=String(data.get("goal")||""),journey=goal&&sqlite.prepare("SELECT 1 FROM journey WHERE id=?").get(goal)?goal:null;
+ const result=storeDocument({id,base:null,title:String(data.get("title")||"Untitled note"),body:String(data.get("body")||""),kind:String(data.get("kind")||"note"),source:String(data.get("source")||""),journey});
  if(String(data.get("body")||"").trim())after(()=>extractRevision(result.revision));
  redirect("/notebook/d/"+id);
 }
@@ -92,4 +94,18 @@ export async function undoAccepted(id:string){
    sqlite.prepare("UPDATE proposal SET status='undone',resolved_at=? WHERE id=?").run(new Date().toISOString(),id);
   }
  })();revalidatePath("/notebook/inbox");
+}
+
+export async function setNoteGoal(id:string,goal:string){
+ requireV2();ensureNotebook();
+ const journey=goal&&sqlite.prepare("SELECT 1 FROM journey WHERE id=?").get(goal)?goal:null;
+ sqlite.prepare("UPDATE document SET journey_id=? WHERE id=?").run(journey,id);
+ revalidatePath("/notebook","layout");
+}
+
+export async function refineNote(text:string){
+ requireV2();
+ if(!text.trim())return {markdown:text,how:"basic" as const,note:"There is nothing to tidy yet."};
+ if(text.length>REFINE_MAX)return {markdown:text,how:"basic" as const,note:"This note is too long to tidy in one go. Split it first."};
+ return refine(text);
 }

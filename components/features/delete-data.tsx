@@ -5,7 +5,7 @@ export function DeleteDataForm(){
  async function remove(data:FormData) {
   await deleteData(data);
   for(const key of Object.keys(localStorage))if(key.startsWith("marginalia-"))localStorage.removeItem(key);
-  window.location.replace("/new");
+  window.location.replace("/goals/new");
  }
- return <form action={remove}><label>Type DELETE to confirm<input name="confirmation" required pattern="DELETE" autoComplete="off"/></label><Button variant="danger">Delete all data</Button></form>;
+ return <form action={remove} className="form"><label className="field"><span>Type DELETE to confirm</span><input name="confirmation" required pattern="DELETE" autoComplete="off"/></label><div><Button variant="danger">Reset everything</Button></div></form>;
 }

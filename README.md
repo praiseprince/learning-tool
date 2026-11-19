@@ -1,12 +1,47 @@
 # Marginalia
 
-Marginalia is a personal learning journal. Journeys and entries live in SQLite on the computer running the app, in `data/app.db` by default.
+A personal, AI-guided learning environment for one learner. Journeys, practice entries, notes and a knowledge atlas live in SQLite on the computer running the app (`data/app.db` by default).
 
-## Run on Wi-Fi
+**One screen.** Marginalia is a conversation with a Guide that knows your whole learning history. Open it and you are in the chat for your current goal, with that goal's roadmap, materials, skills and week on the right. Switch goals from the top bar. Everything else (the 3D Map, Notes, Settings) is one click away.
 
-After installing dependencies with `npm ci`, run `npm run local` from the repository. Keep the terminal open. On an iPad connected to the same Wi-Fi, open the Wi-Fi address printed in the terminal and choose **New journey** to open the Guide. The root route opens your learning dashboard with weekly practice totals and a list of journeys.
+In the chat you can just say things:
+- "I have 30 minutes and I'm a bit tired" → a plan card with timed steps, each naming your actual material and where to continue ("Alfred's, Level 1, p. 58"). Tap how each step went, then **Save this session**.
+- "I practised the left hand for 20 minutes" → logs it, and the Guide offers the skill updates it took from it (you confirm with one tap).
+- Any question → the Guide answers from your own logs and notes, and says when it searched the web.
+- **Find materials** → it searches the web, opens each page, and returns real suggestions; the app re-checks each link itself. You add the ones you want.
+- **Attach work** (photos, PDFs, text) → specific feedback, and evidence only where your own words support it.
+- **Plan my week** (or "plan my week, I'm away Thursday") → the Guide reads the last two weeks, says what moved and what stalled, and drafts one line per day, rest days included. **Use this week**, or **Change it** and say what to change. An accepted week shows in the panel, and **Plan today** then starts from today's slot without asking.
+- **Quiz me** → retrieval practice written from your own notes and sessions: try to answer, reveal, say honestly whether you had it. A finished quiz is saved as a session, so what you missed reaches your skills and later plans. Every note also has **Quiz me on this note**.
+- **Practice sheet** → exercises, handouts or generated files, saved as AI-labelled notes.
+- **Save to notes** under any longer answer keeps it in your notebook, so the knowledge base grows from conversations too.
 
-For production, run `npm run build` once after source changes and use `MARGINALIA_V2=1 npm run start:lan` to launch the built app.
+**Adding a goal** is an interview (`/goals/new`): you say what you want, the Guide asks one relevant question at a time, then shows what it understood for you to correct in words and confirm. **Revise a goal** any time from the panel; each revision is a new version, history and evidence are kept.
+
+**The Guide is a real agent.** Each goal has a sandboxed workspace (`data/workspace/<goal>/`). Before every run the app exports your goal, skills, sessions, evidence, materials, notes, preferences and calendar there as plain files, plus a `library/` of notes from your other goals so it can connect them; Codex reads them, can search the web, and can run code and write files inside that folder only. Everything it proposes appears in the chat as a card you accept or dismiss; nothing changes until you do. Progress streams live. In `AI_PROVIDER=stub` mode the same flows run on offline stub results.
+
+Other screens: **Map** (a 3D graph of everything you know; hover for a tooltip and to light up neighbours, drag to pin, double-click to open, filter, colour by goal or level, overlay your roadmap, keyboard navigation), **Notes** (list and editor, Markdown and LaTeX, **Refine** tidies what you typed with a side-by-side), ⌘K searches everything.
+
+Visual identity and design rules: [`DESIGN.md`](DESIGN.md). Product and AI specification: `MARGINALIA-V2.md`; V1 reference: `context.md`; data migration: `docs/v2/MIGRATION-NOTES.md`; release checks: `docs/v2/beta.md`.
+
+## Run
+
+```
+npm ci
+npm run local
+```
+
+`npm run local:prod` builds and runs the fast production server (recommended for daily use); `npm run local` runs the development server. Either way it starts the app with the V2 workspace enabled on all interfaces and prints a Wi-Fi address, so an iPad on the same network can open it. Press ⌘K / Ctrl+K anywhere to jump to a page, journey or concept. `npm run seed:showcase` loads detailed demo data (Marx, Plato, a 5K, piano with singing and chords) into an **empty** database: delete `data/app.db*` first, and back it up with `scripts/sqlite-snapshot.mjs`. Use `AI_PROVIDER=stub` (see `.env.example`) to run without model calls; the default provider is the installed Codex CLI (`codex login status` to check). For a production run: `npm run build`, then `MARGINALIA_V2=1 npm run start:lan`.
+
+## Stats, defined
+
+| Measure | Meaning |
+| --- | --- |
+| Sessions | Saved practice entries; two on one day count twice. |
+| Minutes | Recorded practice time (accepted corrections applied). Entries without a duration add zero. |
+| Practice days | Distinct dates with practice. Rest days and notes are excluded. |
+| Skill level / evidence | Level is recorded ability (legacy 0-5); evidence is logged support. Practice time alone does not establish mastery. |
+
+Weeks start on the day chosen under **You**. Backdated entries count on their practice date.
 
 ## Optional remote access
 
@@ -20,7 +55,7 @@ Run `npm ci` after upgrading and start with `npm run local`. Opening the V2 work
 
 ## Development
 
-Run `npm run lint` and `npm run build` to check the application. Run `npm run shots` for mobile and desktop captures against a disposable demo database.
+Run `npm run lint` and `npm run build`. `npm run seed:demo` fills a database with demo journeys (use a disposable `DATABASE_URL`); `npm test` runs the week-plan and quiz tests. `npm run shots` builds, seeds throwaway showcase and worst-case data, and screenshots every screen at 390 and 1280px in light and dark (into `design/current`); it fails on overflow, page errors or a non-200 page. The 3D Atlas needs WebGL; for headless screenshots launch Chromium with `--use-angle=swiftshader --enable-unsafe-swiftshader`. In `next dev`, open the app via `localhost`, not `127.0.0.1`.
 
 ## Learning entries and stats
 

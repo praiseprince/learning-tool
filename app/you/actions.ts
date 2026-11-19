@@ -1,7 +1,7 @@
 "use server";
 import {revalidatePath} from "next/cache";
 import {sqlite} from "@/lib/db/client";
-import {clearPersonalData} from "@/lib/db/personal";
+import {backupBeforeReset,clearPersonalData,clearWorkspaces} from "@/lib/db/personal";
 export async function savePreferences(data:FormData) {
  const minutes=Number(data.get("minutes")),week=Number(data.get("week")),time=String(data.get("time")),theme=String(data.get("theme"));
  if(!Number.isInteger(minutes)||minutes<5||minutes>600||![0,1].includes(week)||!["Any time","Morning","Afternoon","Evening"].includes(time)||!["system","light","dark"].includes(theme))throw Error("Check your preferences.");
@@ -15,6 +15,8 @@ export async function editFact(id:string,data:FormData) {
 }
 export async function deleteData(data:FormData) {
  if(data.get("confirmation")!=="DELETE")throw Error("Type DELETE to confirm.");
+ backupBeforeReset();
  clearPersonalData();
+ clearWorkspaces();
  revalidatePath("/","layout");
 }

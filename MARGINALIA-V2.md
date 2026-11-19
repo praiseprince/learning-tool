@@ -1,9 +1,11 @@
+> **Design note (Nov 2026):** the visual identity in sections 8.1-8.3 and 8.11 is superseded by `DESIGN.md` (Cosmos: dark-first, glass, 3D Atlas). Product, data and AI sections remain current.
+
 # Marginalia 2.0: product, architecture and Codex build specification
 
 **Status:** V2 implementation brief, revision 2 (19 November 2026)
 **Audience:** Codex (implementation agent) and the product owner
 **Working name:** Marginalia. Keep the product name in one constant, `APP_NAME`.
-**Predecessors:** `app.md` (what V1 does today), `context.md` (V1 spec and design tokens)
+**Predecessors:** `README.md` (what the app does today), `context.md` (V1 spec)
 
 > **Central idea.** Marginalia is a personal, AI-guided environment for self-directed learning. A living **Knowledge Atlas** shows what the learner knows and how it connects. An **AI Guide** interviews the learner about goals and suggests flexible, goal-conditioned routes through the atlas. A **Notebook** captures notes, sources and conversations naturally, so the atlas and the guide improve over time.
 >
@@ -25,7 +27,7 @@
 
 This file lives in the existing repository as `MARGINALIA-V2.md`. It is not a prompt to scaffold a new project.
 
-1. **Inspect the real repository first.** Read `README.md`, `app.md`, `context.md`, `PRODUCT-PLAN.md` (if present), `AGENTS.md`, `package.json`, DB initialization and migrations, `lib/ai/codex.ts`, `lib/ai/context.ts`, `lib/db/apply.ts`, existing routes, tests and screenshots. The documents describe the app but do not guarantee the code matches. Report discrepancies before changing related code.
+1. **Inspect the real repository first.** Read `README.md`, `context.md`, `AGENTS.md`, `package.json`, DB initialization and migrations, `lib/ai/codex.ts`, `lib/ai/context.ts`, `lib/db/apply.ts`, existing routes, tests and screenshots. The documents describe the app but do not guarantee the code matches. Report discrepancies before changing related code.
 2. **Precedence.** This file decides V2 behavior. Real code and migration history decide how existing data actually works. `context.md` supplies reusable design tokens and conventions where not superseded here. Never destroy V1 data or silently swap conventions.
 3. **One vertical slice at a time.** Each step in section 13 is shippable behind a feature flag or a reversible route change. Run its tests, inspect screenshots, and report acceptance results before starting the next.
 4. **Proposals are not facts.** AI text, candidates and speculative connections never become accepted knowledge without the review path in section 10.6.
@@ -994,7 +996,7 @@ Verified web resources with retrieval-time provenance, animated history scrubbin
 You are upgrading the existing Marginalia app to Marginalia 2.0.
 
 Read MARGINALIA-V2.md fully, then inspect the actual repository, including
-app.md, context.md, AGENTS.md, README.md, PRODUCT-PLAN.md if present,
+context.md, AGENTS.md, README.md,
 package.json, the SQLite schema and migrations, lib/ai/codex.ts,
 lib/ai/context.ts, lib/db/apply.ts, the routes and the Playwright tests.
 
@@ -1106,7 +1108,7 @@ tokens and legacy requirements.
 
 ## 16. References
 
-Project sources: `app.md` (implemented V1), `context.md` (V1 specification). `PRODUCT-PLAN.md` is only assumed to exist; inspect it before relying on it.
+Project sources: `context.md` (V1 specification) and `README.md`.
 
 Candidates for evaluation, not approved dependencies (pin versions only after Step A):
 

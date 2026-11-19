@@ -1,2 +1,2 @@
 import Link from "next/link";
-export default function Missing(){return <main className="journey"><h1>Page unavailable</h1><Link className="text-link" href="/">Go home</Link></main>;}
+export default function Missing() { return <main className="page page--read"><div className="empty"><h1>Not found</h1><p className="prose">That page does not exist, or it was part of an older version of the app.</p><Link className="btn" href="/">Go to Today</Link></div></main>; }

@@ -1,5 +1,6 @@
 import { format, subDays } from "date-fns";
 import { sqlite as db } from "../lib/db/client.ts";
+import { ensureAtlas, insertRelation } from "../lib/v2/atlas.ts";
 const now = new Date().toISOString();
 const add = (id, name, domain, hue, goal, starting, names) => {
   db.prepare("INSERT INTO journey (id,name,domain,hue,start_date,status,created_at) VALUES (?,?,?,?,?,'active',?)").run(id,name,domain,hue,format(subDays(new Date(now), 23), "yyyy-MM-dd"),now);
@@ -33,6 +34,8 @@ add("physics","Physics","science",215,"Understand motion from first principles."
     });
   }
   db.prepare("UPDATE skill SET prereq_ids_json=? WHERE id='piano-8'").run(JSON.stringify(["piano-5","piano-6"]));
+  for (const [id,pre] of [["piano-0",["piano-1","piano-2"]],["piano-2",["piano-1"]],["piano-9",["piano-8","piano-10"]],["piano-3",["piano-12"]],["piano-12",["piano-1","piano-7"]],["piano-13",["piano-12"]],["piano-11",["piano-7"]],
+    ["physics-2",["physics-0","physics-1"]],["physics-3",["physics-2","physics-4"]],["physics-5",["physics-1"]],["physics-4",["physics-2"]]]) db.prepare("UPDATE skill SET prereq_ids_json=? WHERE id=?").run(JSON.stringify(pre),id);
   const insertEvent=db.prepare("INSERT INTO skill_event VALUES (?,?,?,?,?,?,?)");
   for (const [skill,indices] of [[0,[1,9,14]],[1,[0,8]],[5,[2,7,15]],[11,[10]]]) {
     for(const [step,index] of indices.entries()) {
@@ -57,4 +60,6 @@ add("physics","Physics","science",215,"Understand motion from first principles."
   db.prepare("INSERT INTO plan_item VALUES ('piano-demo-plan','piano',?,?,?,?,'planned',30,?)").run(format(new Date(now),"yyyy-MM-dd"),plan.title,plan.why,JSON.stringify(plan.blocks),now);
 
 })();
+ensureAtlas();
+for (const [a,b,why] of [["legacy-piano-4","legacy-physics-4","Loudness in dynamics is wave amplitude, and amplitude is how much energy a sound carries."],["legacy-piano-12","legacy-physics-1","A chord is a sum of frequencies, and vector addition is the same idea of combining components."]]) { try { insertRelation(a,b,"cross_domain_bridge",why,"curated"); } catch {} }
 console.log("Seeded Piano and Physics journeys.");

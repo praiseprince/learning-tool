@@ -1,3 +1,5 @@
+> **Superseded in part:** the visual design (sections 7-8: paper, ink, highlighter, hairlines) is replaced by `DESIGN.md`. Product behaviour and data sections remain a reference for V1.
+
 # Marginalia: product, design and build context
 
 Working name: **Marginalia** (placeholder; keep the name in one constant, `APP_NAME`).

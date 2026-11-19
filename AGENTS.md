@@ -1,10 +1,10 @@
 # Project instructions
 
-Read context.md before starting any task. It is the source of truth for product, design and build order.
+Read README.md and DESIGN.md before starting any task. context.md is the V1 product reference; its visual design is superseded by DESIGN.md.
 
 - Follow the phases in section 15, one at a time.
-- Design values come from sections 7 and 8, structure from section 11. Do not use raw hex or off-scale spacing.
-- Highlighter color is data only. Buttons and links are ink. Two typefaces. No all caps, no card-in-card.
+- Structure comes from context.md section 11. **The design system is in `DESIGN.md` (supersedes the paper-and-ink rules in context.md sections 7-8 and MARGINALIA-V2.md section 8).** Use tokens from `app/theme.css`; no raw hex in components.
+- Follow `DESIGN.md` (chat-first: one thread + goal panel; one tap for common actions; AI proposals appear inline and need acceptance).
 - Develop with AI_PROVIDER=stub until Phase 3.
 - Every AI write goes through the proposal table. Entries are immutable.
 - A UI task is not done until you have run npm run shots, compared the screenshots, and fixed the differences.
@@ -34,6 +34,8 @@ tokens and legacy requirements.
 - Notes support Markdown and LaTeX. Source and evidence links must resolve.
 - Build only the current approved step. Keep stub AI and legacy routes working.
 - Inspect light and dark, mobile and desktop screenshots, and test failure states.
+- Agent work lives in `lib/agent/`. The agent only ever writes inside `data/workspace/<goal>/out/<job>/`; every change it wants to make is a proposal the learner accepts. Validate all agent output with zod; check links in the app, never trust the model's claim.
+- The Map is a grid (controls | canvas | details) with a List fallback. Never float panels over the canvas.
 - For UI work, use the Impeccable design skill and run its anti-pattern checks.
   Where any design skill conflicts with `MARGINALIA-V2.md` section 8 or the
   `context.md` tokens, the project files win.

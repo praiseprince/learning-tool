@@ -1,2 +1,1 @@
-import {Skeleton} from "@/components/ui/skeleton";
-export default function Loading(){return <main className="journey" aria-busy="true" aria-label="Loading"><Skeleton/><Skeleton/><Skeleton/></main>;}
+export default function Loading() { return <main className="page" aria-busy="true" aria-label="Loading"><p className="muted">Loading…</p></main>; }

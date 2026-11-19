@@ -46,7 +46,7 @@ export function revisionById(id:string){
 export function wikiLinks(revision:string):WikiLink[]{
  return sqlite.prepare("SELECT label,to_id AS nodeId FROM entity_link WHERE from_kind='revision' AND from_id=? AND to_kind='node'").all(revision) as WikiLink[];
 }
-export function storeDocument(input:{id:string;base:string|null;title:string;body:string;kind:string;journey:string|null;source?:string}){
+export function storeDocument(input:{id:string;base:string|null;title:string;body:string;kind:string;journey:string|null;source?:string;author?:"learner"|"ai"}){
  ensureNotebook();
  const {id,base,body}=input,title=input.title.trim()||"Untitled note";
  if(title.length>240||body.length>120000||!["note","reflection","source note","exploration","summary"].includes(input.kind))throw Error("Check the title, length and note type.");
@@ -57,7 +57,7 @@ export function storeDocument(input:{id:string;base:string|null;title:string;bod
   const revision=randomUUID();
   if(!old)sqlite.prepare("INSERT INTO document VALUES (?,?,?,?,?,'active',?,?)").run(id,title,input.kind,revision,input.journey,now,now);
   else sqlite.prepare("UPDATE document SET title=?,current_revision_id=?,updated_at=? WHERE id=?").run(title,revision,now,id);
-  sqlite.prepare("INSERT INTO document_revision(id,document_id,content_md,author_kind,based_on_revision_id,created_at,extraction_status) VALUES(?,?,?,'learner',?,?,?)").run(revision,id,body,base,now,body.trim()?"pending":"done");
+  sqlite.prepare("INSERT INTO document_revision(id,document_id,content_md,author_kind,based_on_revision_id,created_at,extraction_status) VALUES(?,?,?,?,?,?,?)").run(revision,id,body,input.author??"learner",base,now,body.trim()&&input.author!=="ai"?"pending":"done");
   const previous=new Map(base?wikiLinks(base).map(l=>[l.label,l.nodeId]):[]);
   for(const match of body.matchAll(/\[\[([^\]\n]{1,160})\]\]/g)){
    const label=match[1].trim(),known=previous.get(label);

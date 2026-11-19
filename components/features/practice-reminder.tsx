@@ -5,7 +5,7 @@ const key="marginalia-reminder";
 export function ReminderControl() {
  const [time,setTime]=useState("");
  useEffect(()=>{const frame=requestAnimationFrame(()=>setTime(localStorage.getItem(key)||""));return ()=>cancelAnimationFrame(frame);},[]);
- return <label>Daily reminder while Marginalia is open<input type="time" value={time} onChange={e=>{setTime(e.target.value);localStorage.setItem(key,e.target.value);window.dispatchEvent(new Event(key));}}/></label>;
+ return <input type="time" aria-label="Daily reminder time" value={time} onChange={e=>{setTime(e.target.value);localStorage.setItem(key,e.target.value);window.dispatchEvent(new Event(key));}}/>;
 }
 export function PracticeReminder() {
  const [due,setDue]=useState(false);
@@ -21,5 +21,5 @@ export function PracticeReminder() {
   return ()=>{clearInterval(timer);window.removeEventListener(key,check);};
  },[]);
  if(!due)return null;
- return <aside className="practice-reminder" role="status">Time for your daily practice. <Link className="text-link" href="/" onClick={()=>setDue(false)}>Open journey</Link> <button className="button button--ghost" onClick={()=>setDue(false)}>Dismiss</button></aside>;
+ return <aside className="form-note" style={{position:"fixed",top:16,right:16,zIndex:60,maxWidth:360,boxShadow:"var(--pop)"}} role="status">Time for your daily practice. <Link className="link" href="/" onClick={()=>setDue(false)}>Open Today</Link> <button className="btn btn--text" onClick={()=>setDue(false)}>Dismiss</button></aside>;
 }
