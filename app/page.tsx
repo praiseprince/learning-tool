@@ -27,7 +27,7 @@ export default function Home() {
   const inactive = journeys.filter(journey => journey.status !== "active");
 
   function courseList(courses: Journey[]) {
-    return courses.map(course => <Link className="course-row" key={course.id} href={`/j/${course.id}`}>
+    return courses.map(course => <Link className="course-row" key={course.id} href={v2Enabled()?`/j/${course.id}/atlas`:`/j/${course.id}`}>
       <div><h3>{course.name}</h3>{course.goal && <p className="reading-small">{course.goal}</p>}</div>
       <ArrowUpRight size={22} strokeWidth={1.5} aria-hidden="true" />
     </Link>);

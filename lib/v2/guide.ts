@@ -22,7 +22,7 @@ export function turns(id:string){
 export function appendTurn(id:string,role:"learner"|"guide",text:string,provider:string){
  const now=new Date().toISOString(),turnId=randomUUID();
  if(role==="guide")sqlite.prepare("INSERT INTO proposal VALUES(?,'','guide_reply',?,'accepted',?,?,?)").run(randomUUID(),JSON.stringify({turnId,text,provider}),id,now,now);
- sqlite.prepare("INSERT INTO guide_turn VALUES(?,?,?,?,?,'[]',?)").run(turnId,id,role,text,JSON.stringify({provider}),now);
+ sqlite.prepare("INSERT INTO guide_turn VALUES(?,?,?,?,?,'[]',?)").run(turnId,id,role,text,JSON.stringify({provider,promptVersion:1,schemaVersion:1}),now);
  sqlite.prepare("UPDATE guide_conversation SET updated_at=? WHERE id=?").run(now,id);
 }
 export function startConversation(goal:string,journey:string|null){

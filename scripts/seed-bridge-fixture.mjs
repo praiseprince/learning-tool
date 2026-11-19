@@ -23,4 +23,16 @@ sqlite.transaction(()=>{
  }
  addAlias("piano-partials","Harmonics");
 })();
+const {storeDocument}=await import("../lib/v2/notebook.ts");
+const {startConversation,appendTurn}=await import("../lib/v2/guide.ts");
+const {offerRoute,approveRoute,localRoute}=await import("../lib/v2/route.ts");
+storeDocument({id:"overtones",base:null,title:"Listening for overtones",kind:"note",journey:"piano",body:"A single piano note contains more than one frequency. Compare [[String partials]] with [[Harmonics]].\n\n$$f_n=n f_1$$"});
+const goal="Understand Marx’s philosophy";
+const guide=startConversation(goal,null);
+appendTurn(guide,"guide","What would you like to explain in your own words?","stub");
+appendTurn(guide,"learner","Explain how historical materialism shapes a reading of a text.","learner");
+const draft=localRoute(goal,[goal,"Explain Marx’s method using a short passage."],"");
+approveRoute(offerRoute(guide,draft),{goal,success:draft.success,background:"Read a short introduction."});
+startConversation("Understand why a violin string resonates","physics");
 sqlite.close();
+console.log(JSON.stringify({guide}));

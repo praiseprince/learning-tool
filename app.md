@@ -4,6 +4,16 @@ Marginalia is a personal, AI-assisted learning notebook. A learner can keep Span
 
 The app is designed for one learner running it on their own laptop. The laptop stores the notebook and serves the web interface. An iPad on the same Wi-Fi can use the same data. For live AI features, the server invokes the locally installed Codex CLI with its authenticated account. That distinction matters: the database lives on the laptop, while relevant learning material goes to Codex when a live AI task runs.
 
+## The V2 workspace
+
+Start with `npm run local`. The home dashboard opens with every journey and this week’s recorded practice. **New journey** starts a Guide conversation. The Guide saves each answer, asks about the desired outcome and starting point, and lets the learner request a draft or write a first step manually. Approving the draft saves a versioned charter and route. Each route step explains its relevance, suggested work and estimated time. A revised route keeps its predecessor available.
+
+The **Atlas** groups concepts by journey. A learner can inspect a source quotation, record a self-assessment, follow related concepts, filter by evidence or goal, and view what had been accepted by a selected date. Alternative names can surface potential connections across subjects. The suggestion inbox records the learner’s decision about each connection.
+
+The **Notebook** holds Markdown pages with equations, code, tables and links to Atlas concepts. Autosave records revisions, and each quoted observation links back to the particular revision it came from. A learner can add a book, article or other source, attach a source note, search past work, and export a page as Markdown. AI extraction runs after saving. A failed request leaves the page available for reading and editing.
+
+The sections below also describe the original journey and practice tools, which remain reachable from the home dashboard.
+
 ## What learning with Marginalia feels like
 
 Suppose you want to learn Spanish for a trip. You start with “I want to order lunch.” The interview might ask what would make the interaction feel successful. You decide that ordering a meal and answering one follow-up without help would count. That becomes an editable goal. Once you confirm it, the conversation turns to your starting point. Knowing a few greetings is a self-report. Responding to a specific Spanish prompt gives the app a sample it can discuss. A written response gives it evidence about your wording; pronunciation still needs a different kind of observation.
@@ -16,7 +26,7 @@ This is an illustrative journey. The live provider generates questions, plans an
 
 **Your learning** is the landing page at `/`. It shows this week’s practice sessions, recorded minutes and distinct practice days across subjects, followed by unfinished interviews and the learner’s journeys. An active journey appears with its goal. Paused and archived journeys remain accessible separately. A new installation can start with an empty dashboard. Piano and Physics are examples installed by the optional demo seed.
 
-The interface uses **journey** for the subject you are learning and **notebook** for the place where you develop and document it. Today they refer to the same underlying journey record. Opening a journey takes you to its own Home page. There you can choose a session duration, see the current plan, check weekly activity, read “Where you are,” and inspect skills. The main navigation’s Home link returns to the cross-journey dashboard.
+The interface uses **journey** for the subject you are learning and **notebook** for the place where you develop and document it. In the original journey screens, a notebook refers to one journey. The V2 Notebook collects pages across subjects. Opening a journey takes you to its own Home page. There you can choose a session duration, see the current plan, check weekly activity, read “Where you are,” and inspect skills. The main navigation’s Home link returns to the cross-journey dashboard.
 
 | Measure | How to read it |
 | --- | --- |
@@ -113,7 +123,7 @@ From the repository, install dependencies with `npm ci`. Use a Node version comp
 | `npm run build` then `npm run start:lan` | Build and serve the production app on the LAN. |
 | `AI_PROVIDER=stub npm run dev:lan` | Exercise supported learning flows with deterministic local responses. |
 | `codex login status` | Check the Codex account used by the operating-system user running the server. Live calls use that account’s model allowance. `AI_MODEL` can override the CLI model. |
-| `npm run tunnel` | Run the optional cloudflared tunnel to port 3000. The public URL exposes this single-user app to whoever can reach it. |
+| `npm run tunnel` | Run an existing named Cloudflare Tunnel with an externally configured identity policy. Public access to the origin is unsupported. |
 | `npm run seed:demo` | Reset the named Piano and Physics demo data in the selected database. Use a disposable database when experimenting with the examples. |
 | `npm run lint` and `npm run build` | Check source conventions, TypeScript and the production build. |
 | `npm run shots` | Build, seed a disposable database, exercise screens with the stub, and write mobile and desktop light/dark captures into `design/current/`. |
@@ -126,4 +136,4 @@ The production service worker supports an offline fallback page and the manifest
 
 The goal-first interview is the first implemented milestone of the professional notebook plan. The app already supports the practice loop, reviewable suggestions, personal dashboards, exports and responsive layouts. The next product milestone is the guided first exercise with instruction, an attempt, feedback and retry. Later dashboard work calls for direct resumption of unfinished exercises and evidence-linked observations about comparable attempts.
 
-A distributable beta also needs clean-install and upgrade testing on supported machines, verified backup and restore, physical-device checks, and an access-control decision before enabling remote access by default. The current distribution model assumes a trusted single learner and host. The [product plan](PRODUCT-PLAN.md) describes the proposed release gates. The [project specification](context.md) defines the product vocabulary, design rules, architecture and original phase order. The [README](README.md) is the shorter operator’s guide.
+The local beta has been tested from a clean install and an upgraded V1 fixture. Backup and restore preserve the original records and V2 history. Tablet verification used browser touch emulation. The deployment assumes one learner on a trusted network. The [beta verification notes](docs/v2/beta.md) list the checks, and the [README](README.md) covers startup, backup and remote-access boundaries.

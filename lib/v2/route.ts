@@ -29,7 +29,7 @@ export function offerRoute(threadId:string,input:unknown){
  if(!thread)throw Error("Conversation unavailable.");
  const base=sqlite.prepare("SELECT id FROM learning_route WHERE journey_id=? AND status='active'").get(thread.context_id) as {id:string}|undefined;
  const id=randomUUID();
- sqlite.prepare("INSERT INTO proposal VALUES(?,?,'guide_route',?,'pending',?,?,NULL)").run(id,thread.context_id||"",JSON.stringify({draft,base:base?.id||null}),threadId,new Date().toISOString());
+ sqlite.prepare("INSERT INTO proposal VALUES(?,?,'guide_route',?,'pending',?,?,NULL)").run(id,thread.context_id||"",JSON.stringify({promptVersion:1,schemaVersion:1,draft,base:base?.id||null}),threadId,new Date().toISOString());
  return id;
 }
 export function approveRoute(id:string,edits:{goal:string;success:string;background:string}){
@@ -57,14 +57,14 @@ export function approveRoute(id:string,edits:{goal:string;success:string;backgro
    sqlite.prepare("INSERT INTO route_step VALUES(?,?,?,?,?)").run(randomUUID(),route,n.id,i,JSON.stringify(s));
   }
   sqlite.prepare("UPDATE guide_conversation SET context_id=?,status='active',updated_at=? WHERE id=?").run(journey,now,thread.id);
-  sqlite.prepare("UPDATE proposal SET status='accepted',resolved_at=?,diff_json=? WHERE id=?").run(now,JSON.stringify({draft:d,base,route}),id);
+  sqlite.prepare("UPDATE proposal SET status='accepted',resolved_at=?,diff_json=? WHERE id=?").run(now,JSON.stringify({promptVersion:1,schemaVersion:1,draft:d,base,route}),id);
   return route;
  })();
 }
 
 export function localRoute(goal:string,answers:string[],manual:string):Draft{
  const words=answers.join(" ").toLowerCase();
- const marx=/marx/.test(words),economics=/econom|capital|surplus/.test(words);
+ const marx=/marx/.test(words),focus=[...answers].reverse().find(a=>/econom|capital|surplus|philosoph|dialectic/i.test(a))||goal,economics=/econom|capital|surplus/i.test(focus);
  const labels=manual?[manual]:marx?(economics?["Commodity and value","Surplus value","Debates about value"]:["Historical materialism","Hegelian dialectics","Alienation in the early manuscripts"]):[goal.slice(0,160),"A worked example","An alternative approach"];
  const reasons=marx?(economics?["Distinguish use value from exchange value when reading Capital.","Tracing a working day connects production to Marx’s account of profit.","Later critiques give you a comparison after a first reading."]:["This is a starting point for exploring how Marx relates ideas to material life.","Marx’s critique of Hegel helps explain his use of dialectics. A short introduction is enough for this goal.","An early text gives you another angle on the relation between work and freedom."]):["Work directly on the outcome you described.","A concrete example can reveal what you still need to understand.","Compare approaches if the first one leaves a question open."];
  return {goal,why:"",background:answers[2]||"",success:answers[1]||"Describe or demonstrate one example in your own words.",constraints:answers[3]||"",steps:labels.map((title,i)=>({key:"step-"+i,title,necessity:(["core","helpful_context","optional_tangent"] as const)[i],reason:reasons[i],approach:manual||("Find one example of "+title+" and record how it relates to your goal."),minutes:i===0?15:20,dependencies:i?["step-0"]:[]}))};

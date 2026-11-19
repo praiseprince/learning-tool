@@ -5,7 +5,7 @@ import {tmpdir} from "node:os";
 import {spawn} from "node:child_process";
 import {chromium} from "playwright";
 const dir=await mkdtemp(join(tmpdir(),"guide-browser-"));
-const port=3196,base="http://127.0.0.1:"+port;
+const port=Number(process.env.GUIDE_TEST_PORT||3196),base="http://127.0.0.1:"+port;
 const server=spawn(process.execPath,["node_modules/next/dist/bin/next","start","-H","127.0.0.1","-p",String(port)],{stdio:"ignore",env:{...process.env,MARGINALIA_V2:"1",AI_PROVIDER:"stub",DATABASE_URL:join(dir,"guide.db")}});
 const browser=await chromium.launch();
 try{
@@ -28,10 +28,28 @@ try{
  await page.getByLabel("Your answer").fill("I have 20 minutes");
  await page.getByRole("button",{name:"Ask the Guide"}).click();
  await page.getByText(/Allow about 15 minutes/).waitFor();
+ const threadUrl=page.url();
+ await page.getByLabel("Your answer").fill("Why is dialectics relevant?");
+ await page.getByRole("button",{name:"Ask the Guide"}).click();
+ await page.getByText(/Marx’s critique of Hegel helps explain his use of dialectics.*Find one example/).waitFor();
+ await page.waitForLoadState("networkidle");
+ await page.getByLabel("Your answer").fill("Where should I search for sources?");
+ await page.getByRole("button",{name:"Ask the Guide"}).click();
+ await page.getByText(/Save a source you choose/).waitFor();
  await page.getByRole("link",{name:"View route in Atlas"}).click();
  await page.getByRole("button",{name:"Show outline"}).click();
  assert.equal(await page.locator(".v2-outline li").count(),3);
  await page.getByRole("link",{name:"Hegelian dialectics"}).click();
  await page.getByRole("heading",{name:"Hegelian dialectics"}).waitFor();
+ await page.goto(threadUrl);
+ await page.getByLabel("Your answer").fill("I want to change direction and focus on Marx’s economics.");
+ await page.getByRole("button",{name:"Ask the Guide"}).click();
+ await page.getByText("I want to change direction and focus on Marx’s economics.",{exact:true}).waitFor();
+ await page.waitForLoadState("networkidle");
+ await page.getByRole("button",{name:"Propose a revised route"}).click();
+ await page.getByRole("heading",{name:"Review your proposed route"}).waitFor();
+ await page.getByRole("button",{name:"Approve charter and route"}).click();
+ await page.getByRole("link",{name:"Surplus value"}).waitFor();
+ await page.getByText("Route 1 · superseded").waitFor();
  console.log("Resumed interview, edited charter, approved route, timed guidance and Atlas overlay passed.");
 }finally{await browser.close();server.kill();await rm(dir,{recursive:true,force:true});}

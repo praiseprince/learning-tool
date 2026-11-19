@@ -13,7 +13,7 @@ try {
   const env={...process.env,DATABASE_URL:join(directory,"test.db"),MARGINALIA_V2:"1",AI_PROVIDER:provider,PATH:directory+":"+process.env.PATH};
   await writeFile(join(directory,"codex"),"#!/bin/sh\nexit 1\n",{mode:0o755});
   execFileSync(process.execPath,["scripts/seed-demo.mjs"],{env});
-  const port=provider==="stub"?3192:3193,base="http://127.0.0.1:"+port;
+  const port=Number(process.env.NOTE_TEST_PORT||3192)+(provider==="stub"?0:1),base="http://127.0.0.1:"+port;
   const server=spawn(process.execPath,["node_modules/next/dist/bin/next","start","-H","127.0.0.1","-p",String(port)],{env,stdio:"ignore"});
   const page=await browser.newPage();
   const db=new Database(env.DATABASE_URL);
@@ -40,6 +40,22 @@ try {
     await page.getByRole("button",{name:"Dismiss"}).click();
     await page.getByText("Nothing waiting for review.").waitFor();
     assert.equal(db.prepare("SELECT count(*) n FROM knowledge_observation WHERE source_kind='document_revision'").get().n,1);
+    await page.getByText("Recently accepted",{exact:true}).click();
+    await page.getByRole("button",{name:"Undo acceptance"}).click();
+    await page.getByRole("button",{name:"Undo acceptance"}).waitFor({state:"detached"});
+    assert.equal(db.prepare("SELECT count(*) n FROM knowledge_observation WHERE source_kind='document_revision'").get().n,0);
+    await page.goto(note);
+    await page.locator("textarea.v2-writing").fill("An idea: [[Overtone series]].");
+    await page.getByRole("status").filter({hasText:/^Saved$/}).waitFor();
+    await page.goto(base+"/notebook/inbox");
+    await page.getByRole("heading",{name:"New concept · Overtone series"}).waitFor();
+    await page.getByRole("button",{name:"Accept",exact:true}).click();
+    await page.getByText("Nothing waiting for review.").waitFor();
+    assert.ok(db.prepare("SELECT id FROM atlas_node WHERE label='Overtone series'").get());
+    await page.getByText("Recently accepted",{exact:true}).click();
+    await page.getByRole("button",{name:"Undo acceptance"}).click();
+    await page.getByRole("button",{name:"Undo acceptance"}).waitFor({state:"detached"});
+    assert.ok(!db.prepare("SELECT id FROM atlas_node WHERE label='Overtone series'").get());
    }else{
     for(let i=0;i<100;i++){
      if(db.prepare("SELECT 1 FROM document_revision WHERE extraction_status='failed'").get())break;

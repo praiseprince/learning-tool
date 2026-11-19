@@ -3,7 +3,7 @@ import { sqlite } from "../db/client.ts";
 import { ensureAtlas } from "./atlas.ts";
 
 export type DocumentRow={id:string;title:string;kind:string;current_revision_id:string;journey_id:string|null;status:string;created_at:string;updated_at:string};
-export type Revision={id:string;document_id:string;content_md:string;author_kind:string;based_on_revision_id:string|null;created_at:string;extraction_status:string};
+export type Revision={id:string;document_id:string;content_md:string;author_kind:string;based_on_revision_id:string|null;created_at:string;extraction_status:string;lease_until:string|null;can_retry:number};
 export type Resource={id:string;kind:string;title:string;creator:string;url:string;notes:string;origin:string;created_at:string};
 export type WikiLink={label:string;nodeId:string};
 let ready=false;
@@ -30,6 +30,10 @@ export function ensureNotebook(){
   CREATE TRIGGER notebook_delete_skill_event AFTER DELETE ON skill_event BEGIN DELETE FROM notebook_search WHERE kind='skill_event' AND id=OLD.id; END;`);
   sqlite.prepare("INSERT INTO schema_migration VALUES ('notebook-event-search',?)").run(new Date().toISOString());
  }
+ if(!sqlite.prepare("SELECT 1 FROM schema_migration WHERE id='extraction-lease'").get()){
+  sqlite.exec("ALTER TABLE document_revision ADD COLUMN lease_until TEXT; UPDATE document_revision SET extraction_status='failed' WHERE extraction_status='reading'");
+  sqlite.prepare("INSERT INTO schema_migration VALUES ('extraction-lease',?)").run(new Date().toISOString());
+ }
  })();ready=true;
 }
 export function documentById(id:string){
@@ -37,7 +41,7 @@ export function documentById(id:string){
  return sqlite.prepare("SELECT * FROM document WHERE id=? AND status='active'").get(id) as DocumentRow|undefined;
 }
 export function revisionById(id:string){
- return sqlite.prepare("SELECT * FROM document_revision WHERE id=?").get(id) as Revision|undefined;
+ return sqlite.prepare("SELECT *, (extraction_status IN ('failed','pending') OR (extraction_status='reading' AND julianday(lease_until)<julianday('now'))) AS can_retry FROM document_revision WHERE id=?").get(id) as Revision|undefined;
 }
 export function wikiLinks(revision:string):WikiLink[]{
  return sqlite.prepare("SELECT label,to_id AS nodeId FROM entity_link WHERE from_kind='revision' AND from_id=? AND to_kind='node'").all(revision) as WikiLink[];
@@ -53,7 +57,7 @@ export function storeDocument(input:{id:string;base:string|null;title:string;bod
   const revision=randomUUID();
   if(!old)sqlite.prepare("INSERT INTO document VALUES (?,?,?,?,?,'active',?,?)").run(id,title,input.kind,revision,input.journey,now,now);
   else sqlite.prepare("UPDATE document SET title=?,current_revision_id=?,updated_at=? WHERE id=?").run(title,revision,now,id);
-  sqlite.prepare("INSERT INTO document_revision VALUES(?,?,?,'learner',?,?,?)").run(revision,id,body,base,now,body.trim()?"pending":"done");
+  sqlite.prepare("INSERT INTO document_revision(id,document_id,content_md,author_kind,based_on_revision_id,created_at,extraction_status) VALUES(?,?,?,'learner',?,?,?)").run(revision,id,body,base,now,body.trim()?"pending":"done");
   const previous=new Map(base?wikiLinks(base).map(l=>[l.label,l.nodeId]):[]);
   for(const match of body.matchAll(/\[\[([^\]\n]{1,160})\]\]/g)){
    const label=match[1].trim(),known=previous.get(label);

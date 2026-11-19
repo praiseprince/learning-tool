@@ -29,3 +29,15 @@ export async function linkNodes(source:string,data:FormData) {
   })();}catch{redirect("/atlas/n/"+encodeURIComponent(source)+"?linkError=1");}
   redirect("/atlas/n/"+encodeURIComponent(source));
 }
+
+export async function assessNode(node:string,data:FormData){
+ requireV2();const value=String(data.get("assessment")||"");
+ if(!["unknown","uncertain","developing","comfortable"].includes(value))throw Error("Choose an assessment.");
+ const now=new Date().toISOString(),id=randomUUID();
+ sqlite.transaction(()=>{
+  if(!sqlite.prepare("SELECT 1 FROM atlas_node WHERE id=?").get(node))throw Error("Concept unavailable.");
+  const before=sqlite.prepare("SELECT after_json FROM graph_event WHERE entity='self_assessment' AND entity_id=? ORDER BY rowid DESC LIMIT 1").get(node) as {after_json:string}|undefined;
+  sqlite.prepare("INSERT INTO proposal VALUES(?,'','self_assessment',?,'accepted',?,?,?)").run(id,JSON.stringify({node,value}),node,now,now);
+  event("assess","self_assessment",node,before?JSON.parse(before.after_json):null,{node,value},id);
+ })();redirect("/atlas/n/"+node);
+}

@@ -23,7 +23,7 @@ export function AtlasPage({journey,filters={}}:{journey?:string;filters?:Filters
  const memberships=sqlite.prepare("SELECT DISTINCT coalesce(r.target,m.node_id) AS id,j.id AS journey,j.name FROM atlas_membership m JOIN journey j ON j.id=m.journey_id LEFT JOIN atlas_redirect r ON r.source=m.node_id ORDER BY j.name").all() as {id:string;journey:string;name:string}[];
  const visible=new Set(nodes.map(n=>n.id));
  const edges=graph.edges.filter(e=>visible.has(e.source)&&visible.has(e.target));
- return <V2Shell active="Atlas"><header><p className="kicker">{row?.name||"Marginalia"}</p><h1>{row?"Local atlas":"Your atlas"}</h1><Link href="/atlas/history">Atlas history</Link>{journey&&<> · <Link href="/atlas">All journeys</Link></>}</header>
+ return <V2Shell active="Atlas"><header><p className="kicker">{row?.name||"Marginalia"}</p><h1>{row?"Local atlas":"Your atlas"}</h1><Link href="/atlas/history">Atlas history</Link>{journey&&<> · <Link href="/atlas">All journeys</Link> · <Link href={`/j/${journey}`}>Practice tools and journal</Link></>}</header>
  <details open={Object.values(filters).some(Boolean)}><summary>Filter concepts</summary><form>
  {!journey&&<label>Journey<select name="area" defaultValue={area}><option value="">All journeys</option>{areas.map(a=><option value={a.id} key={a.id}>{a.name}</option>)}</select></label>}
  {routes.length>0&&<label>Goal route<select name="route" defaultValue={String(filters.route||"")}><option value="">All concepts</option>{routes.map(r=><option key={r.id} value={r.id}>{r.goal}</option>)}</select></label>}

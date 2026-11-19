@@ -1,0 +1,12 @@
+import {networkInterfaces} from "node:os";
+import {spawn} from "node:child_process";
+import {once} from "node:events";
+const args=process.argv.slice(2);
+const portIndex=args.findIndex(arg=>arg==="--port"||arg==="-p");
+const port=portIndex>=0?args[portIndex+1]:process.env.PORT||"3000";
+const networks=Object.values(networkInterfaces()).flat().filter(address=>address?.family==="IPv4"&&!address.internal);
+for(const {address} of networks)console.log("Wi-Fi address: http://"+address+":"+port);
+const child=spawn(process.execPath,["node_modules/next/dist/bin/next","dev","--hostname","0.0.0.0",...args],{stdio:"inherit",env:{...process.env,MARGINALIA_V2:"1",PORT:port}});
+for(const signal of ["SIGINT","SIGTERM"])process.on(signal,()=>child.kill(signal));
+const [code,signal]=await once(child,"exit");
+process.exitCode=code??(signal==="SIGINT"?130:1);

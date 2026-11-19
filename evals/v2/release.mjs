@@ -1,0 +1,38 @@
+import assert from "node:assert/strict";
+import {mkdtemp,rm} from "node:fs/promises";
+import {join} from "node:path";
+import {tmpdir} from "node:os";
+import {execFileSync} from "node:child_process";
+import Database from "better-sqlite3";
+const dir=await mkdtemp(join(tmpdir(),"marginalia-release-"));
+const file=join(dir,"upgrade.db");
+process.env.DATABASE_URL=file;
+const run=(script,...args)=>execFileSync(process.execPath,[script,...args]);
+try{
+ run("scripts/seed-demo.mjs");
+ const {sqlite}=await import("../../lib/db/client.ts");
+ const entries=sqlite.prepare("SELECT id,raw_text FROM log_entry ORDER BY id").all();
+ const {ensureBridges}=await import("../../lib/v2/bridges.ts");
+ const {startConversation}=await import("../../lib/v2/guide.ts");
+ const {localRoute,offerRoute,approveRoute}=await import("../../lib/v2/route.ts");
+ const {storeDocument,revisionById}=await import("../../lib/v2/notebook.ts");
+ const {personalTables,clearPersonalData}=await import("../../lib/db/personal.ts");
+ ensureBridges();
+ const thread=startConversation("Explore sound","physics"),draft=localRoute("Explore sound",["Explore sound"],"");
+ approveRoute(offerRoute(thread,draft),{goal:draft.goal,success:draft.success,background:"Played piano"});
+ const {revision}=storeDocument({id:"test-note",title:"Questions",kind:"note",journey:"physics",body:"[[Scales]] and sound waves",base:null});
+ sqlite.prepare("UPDATE document_revision SET extraction_status='reading',lease_until='2000-01-01' WHERE id=?").run(revision);
+ assert.equal(revisionById(revision).can_retry,1);
+ assert.deepEqual(sqlite.prepare("SELECT id,raw_text FROM log_entry ORDER BY id").all(),entries);
+ const backup=join(dir,"backup.db"),restore=join(dir,"restore.db");
+ run("scripts/sqlite-snapshot.mjs","backup",file,backup);
+ run("scripts/sqlite-snapshot.mjs","restore",backup,restore);
+ const copy=new Database(restore,{readonly:true});
+ for(const table of personalTables())assert.deepEqual(copy.prepare('SELECT * FROM '+table+' ORDER BY rowid').all(),sqlite.prepare('SELECT * FROM '+table+' ORDER BY rowid').all(),table);
+ assert.deepEqual(copy.pragma("foreign_key_check"),[]);
+ copy.close();
+ clearPersonalData();
+ for(const table of personalTables())assert.equal(sqlite.prepare('SELECT count(*) n FROM '+table).get().n,0,table);
+ sqlite.close();
+ console.log("V1 upgrade retained every entry, expired work is retryable, complete V2 backup restored and disposable data deletion passed.");
+}finally{await rm(dir,{recursive:true,force:true});}

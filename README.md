@@ -4,13 +4,19 @@ Marginalia is a personal learning journal. Journeys and entries live in SQLite o
 
 ## Run on Wi-Fi
 
-After installing dependencies with `npm ci`, run `npm run dev:lan` from the repository. Keep the terminal open. On an iPad connected to the same Wi-Fi, open the Network address printed by Next.js and visit `/new` to create a journey. The root route opens your learning dashboard with weekly practice totals and a list of journeys.
+After installing dependencies with `npm ci`, run `npm run local` from the repository. Keep the terminal open. On an iPad connected to the same Wi-Fi, open the Wi-Fi address printed in the terminal and choose **New journey** to open the Guide. The root route opens your learning dashboard with weekly practice totals and a list of journeys.
 
-For production, run `npm run build` once after source changes and use `npm run start:lan` to launch the built app.
+For production, run `npm run build` once after source changes and use `MARGINALIA_V2=1 npm run start:lan` to launch the built app.
 
 ## Optional remote access
 
-With Marginalia listening on port 3000 and cloudflared installed, run `npm run tunnel` in another terminal. The printed public URL gives anyone who has it access to the app. Stop that process to close the tunnel.
+Marginalia is a single-user app for a trusted Wi-Fi network. Anyone who can reach the origin can read or change the notebook. Public access to the origin is unsupported. The optional command `npm run tunnel -- <named-tunnel>` uses a preconfigured Cloudflare Tunnel. Only use it behind an identity policy that you have tested from a signed-out browser; Marginalia does not set up or verify that policy.
+
+## Back up, upgrade and restore
+
+Before upgrading, run `node scripts/sqlite-snapshot.mjs backup data/app.db marginalia-backup.db` from the repository. Supply a new output filename. SQLite includes committed changes from the write-ahead log. The command checks the snapshot before publishing it.
+
+Run `npm ci` after upgrading and start with `npm run local`. Opening the V2 workspace imports existing skills and observations. The original journey, goal, journal and practice URLs remain available. To test a restore, run `node scripts/sqlite-snapshot.mjs restore marginalia-backup.db restored.db`, then `DATABASE_URL=./restored.db npm run local` on a free port. The restore leaves the original database in place.
 
 ## Development
 
@@ -26,7 +32,7 @@ Run `npm run evals` to exercise 12 synthetic entries with the live Codex CLI. Th
 
 ## Installed app and exports
 
-On a secure origin, the production build registers a service worker and can be added to a home screen. Plain HTTP on a Wi-Fi address supports the journal. Service workers and screen wake lock require HTTPS or localhost. The optional HTTPS tunnel also works for these browser features.
+On a secure origin, the production build registers a service worker and can be added to a home screen. Plain HTTP on a Wi-Fi address supports the journal. Service workers and screen wake lock require HTTPS or localhost.
 
 Open **You** to set the theme and week start, edit profile facts, or download JSON and Markdown. **Goal** keeps an immutable version history, including restored versions.
 

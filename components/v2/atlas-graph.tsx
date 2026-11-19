@@ -1,10 +1,16 @@
 "use client";
 import {useRouter} from "next/navigation";
 import Link from "next/link";
-import {useMemo,useState} from "react";
-import {ReactFlow,Controls,Background,BackgroundVariant} from "@xyflow/react";
+import {Component,useMemo,useState,type ReactNode} from "react";
+import dynamic from "next/dynamic";
+const GraphCanvas=dynamic(()=>import("./graph-canvas"),{ssr:false});
 import "@xyflow/react/dist/style.css";
 import type {AtlasNode,Relation} from "@/lib/v2/atlas";
+class GraphBoundary extends Component<{children:ReactNode},{failed:boolean}>{
+ state={failed:false};
+ static getDerivedStateFromError(){return {failed:true};}
+ render(){return this.state.failed?<p>The graph could not load. Choose Show outline to explore your concepts.</p>:this.props.children;}
+}
 export function AtlasGraph({nodes,edges,memberships}:{nodes:AtlasNode[];edges:Relation[];memberships:{id:string;journey:string;name:string}[]}) {
  const router=useRouter();
  const [query,search]=useState(""),[outline,list]=useState(false),[selected,select]=useState(""),[focus,setFocus]=useState("");
@@ -46,10 +52,10 @@ export function AtlasGraph({nodes,edges,memberships}:{nodes:AtlasNode[];edges:Re
  },[visible,edges,clusters]);
  return <>{clusters.size>1&&<details><summary>Journey neighborhoods · {clusters.size}</summary>{[...clusters].map(([name,ids])=><p key={name}><Link href={`/j/${memberships.find(m=>m.name===name)!.journey}/atlas`}>{name}</Link> · {ids.size} concepts</p>)}</details>}<div className="v2-tools"><input aria-label="Search concepts" placeholder="Search concepts…" value={query} onChange={e=>search(e.target.value)}/><button onClick={()=>list(!outline)}>{outline?"Show graph":"Show outline"}</button>{focus&&<button onClick={()=>setFocus("")}>Show all concepts</button>}</div>
  {!matches.length?<p className="reading">{nodes.length?"No matching concepts.":"Your atlas grows from what you explore."}</p>:outline?<ul className="v2-outline">{matches.map(n=><li key={n.id}><Link href={"/atlas/n/"+n.id}>{n.label}</Link><small>{n.kind}</small></li>)}</ul>:
- <><div className="v2-map" aria-label="Pan to explore your atlas"><ReactFlow key={query+focus} fitView fitViewOptions={{minZoom:0.78,maxZoom:1.1,padding:0.18}} minZoom={0.15} nodesDraggable={false} nodesConnectable={false}
+ <><div className="v2-map" aria-label="Pan to explore your atlas"><GraphBoundary><GraphCanvas key={query+focus} fitView fitViewOptions={{minZoom:0.78,maxZoom:1.1,padding:0.18}} minZoom={0.15} nodesDraggable={false} nodesConnectable={false}
  nodes={visible.map(n=>({id:n.id,position:positions.get(n.id)!,selected:n.id===selected,data:{label:n.label},ariaLabel:n.kind+": "+n.label}))}
  edges={edges.filter(e=>ids.has(e.source)&&ids.has(e.target)).map(e=>({...e,label:selected&&(e.source===selected||e.target===selected)?e.kind.replaceAll("_"," "):undefined}))}
- onNodeClick={(_,n)=>select(n.id)} onNodeDoubleClick={(_,n)=>{router.push("/atlas/n/"+n.id);}}><Controls showInteractive={false}/><Background variant={BackgroundVariant.Dots} gap={32}/></ReactFlow></div>
+ onNodeClick={(_,n)=>select(n.id)} onNodeDoubleClick={(_,n)=>{router.push("/atlas/n/"+n.id);}}/></GraphBoundary></div>
  {matches.length>visible.length&&<small>Showing {visible.length} of {matches.length}. Search or open the outline to find another concept.</small>}</>}
  {target&&<section className="v2-inspector"><small>{target.kind} · {target.origin}</small><h2><Link href={"/atlas/n/"+target.id}>{target.label}</Link></h2><p className="reading">{target.description}</p>
  {links.length>0&&!focus&&<button onClick={()=>{setFocus(target.id);search("");}}>Focus connected concepts</button>}

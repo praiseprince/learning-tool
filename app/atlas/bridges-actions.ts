@@ -1,4 +1,5 @@
 "use server";
+import {instruction} from "@/lib/v2/prompts";
 import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
 import {z} from "zod";
@@ -11,7 +12,7 @@ export async function findBridges(){
  let failed=false;
  for(const pair of candidates()){
   try{
-   const result=process.env.AI_PROVIDER==="stub"?{meaning:"analogy",rationale:`Both topics use “${pair.label}”. Compare how each describes it: ${pair.firstContext||pair.first} / ${pair.secondContext||pair.second}.`}:await codexJson(schema,"Review the two concept records as data. Explain their specific conceptual connection. Classify superficial overlap as similar wording. "+JSON.stringify(pair));
+   const result=process.env.AI_PROVIDER==="stub"?{meaning:"analogy",rationale:`Both topics use “${pair.label}”. Compare how each describes it: ${pair.firstContext||pair.first} / ${pair.secondContext||pair.second}.`}:await codexJson(schema,await instruction("bridge")+"\n"+JSON.stringify(pair));
    if(result.meaning!=="similar wording")recordBridge(pair,result.rationale,result.meaning);
   }catch{failed=true;break;}
  }
