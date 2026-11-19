@@ -1,2 +1,2 @@
 import {AtlasPage} from "@/components/v2/atlas-page";
-export default function Atlas(){return <AtlasPage/>;}
+export default async function Atlas({searchParams}:PageProps<"/atlas">){return <AtlasPage filters={await searchParams}/>;}

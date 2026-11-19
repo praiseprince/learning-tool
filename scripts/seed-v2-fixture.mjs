@@ -17,5 +17,11 @@ sqlite.transaction(()=>{
   sqlite.prepare("INSERT INTO atlas_membership VALUES(?,'scale')").run(id);event("create","node",id,null,node);
   if(i)insertRelation(id,"scale-"+Math.floor((i-1)/3),"part_of","Fixture hierarchy","user");
  }
+ if(size===1000){
+  for(let i=0;i<size;i++){
+   for(const offset of [7,31])insertRelation("scale-"+i,"scale-"+((i+offset)%size),"related_to","Fixture cross-reference","user");
+  }
+  insertRelation("scale-0","scale-93","related_to","Fixture cross-reference","user");
+ }
 })();
 sqlite.close();console.log("Created disposable local atlas with "+size+" nodes.");

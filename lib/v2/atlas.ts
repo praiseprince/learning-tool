@@ -30,6 +30,7 @@ export function ensureAtlas(){
   sqlite.transaction(()=>{
     sqlite.exec(`CREATE TABLE IF NOT EXISTS schema_migration(id TEXT PRIMARY KEY,applied_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS atlas_node(id TEXT PRIMARY KEY,label TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('concept','skill','question','topic')),description TEXT NOT NULL,origin TEXT NOT NULL,legacy_id TEXT UNIQUE);
+    CREATE TABLE IF NOT EXISTS atlas_redirect(source TEXT PRIMARY KEY REFERENCES atlas_node(id),target TEXT NOT NULL REFERENCES atlas_node(id),CHECK(source<>target));
     CREATE TABLE IF NOT EXISTS atlas_membership(node_id TEXT NOT NULL REFERENCES atlas_node(id),journey_id TEXT NOT NULL REFERENCES journey(id),PRIMARY KEY(node_id,journey_id));
     CREATE TABLE IF NOT EXISTS atlas_relation(id TEXT PRIMARY KEY,source TEXT NOT NULL REFERENCES atlas_node(id),target TEXT NOT NULL REFERENCES atlas_node(id),kind TEXT NOT NULL,rationale TEXT NOT NULL,origin TEXT NOT NULL,UNIQUE(source,target,kind));
     CREATE INDEX IF NOT EXISTS atlas_target ON atlas_relation(target,kind);
@@ -74,8 +75,9 @@ export function ensureAtlas(){
 }
 export function projection(journey?:string) {
   ensureAtlas();
-  const nodes=(journey?sqlite.prepare("SELECT n.* FROM atlas_node n JOIN atlas_membership m ON m.node_id=n.id WHERE m.journey_id=? ORDER BY n.label,n.id").all(journey):sqlite.prepare("SELECT * FROM atlas_node ORDER BY label,id").all()) as AtlasNode[];
+  const redirects=new Map((sqlite.prepare("SELECT source,target FROM atlas_redirect").all() as {source:string;target:string}[]).map(r=>[r.source,r.target]));
+  const nodes=(journey?sqlite.prepare(`SELECT DISTINCT n.* FROM atlas_membership m LEFT JOIN atlas_redirect r ON r.source=m.node_id JOIN atlas_node n ON n.id=coalesce(r.target,m.node_id) WHERE m.journey_id=? ORDER BY n.label,n.id`).all(journey):sqlite.prepare("SELECT * FROM atlas_node WHERE id NOT IN (SELECT source FROM atlas_redirect) ORDER BY label,id").all()) as AtlasNode[];
   const ids=new Set(nodes.map(n=>n.id));
-  const edges=(sqlite.prepare("SELECT * FROM atlas_relation ORDER BY id").all() as Relation[]).filter(e=>ids.has(e.source)&&ids.has(e.target));
+  const edges=(sqlite.prepare("SELECT * FROM atlas_relation ORDER BY id").all() as Relation[]).map(e=>({...e,source:redirects.get(e.source)||e.source,target:redirects.get(e.target)||e.target})).filter(e=>e.source!==e.target&&ids.has(e.source)&&ids.has(e.target));
   return {nodes,edges};
 }
