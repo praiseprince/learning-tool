@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { format,startOfWeek,endOfWeek } from "date-fns";
 import { notFound,redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { preferences } from "@/lib/db/personal";
 import { getJourneyView } from "@/lib/db/queries";
 import { sqlite } from "@/lib/db/client";
 import { codexJson } from "@/lib/ai/codex";
@@ -20,14 +21,17 @@ export async function weeklyReview(journey:string) {
   const view=await getJourneyView(journey);
   if(!view) notFound();
   const now=new Date();
-  const from=format(startOfWeek(now,{weekStartsOn:1}),"yyyy-MM-dd");
-  const to=format(endOfWeek(now,{weekStartsOn:1}),"yyyy-MM-dd");
+  const from=format(startOfWeek(now,{weekStartsOn:preferences().week_start}),"yyyy-MM-dd");
+  const to=format(endOfWeek(now,{weekStartsOn:preferences().week_start}),"yyyy-MM-dd");
   const lookup=()=>sqlite.prepare("SELECT id FROM review WHERE journey_id=? AND period_start=?").get(journey,from) as {id:string}|undefined;
   const old=lookup();
   if(old) redirect(`/j/${journey}/review/${old.id}`);
   const entries=view.entries.filter(row=>row.occurredOn>=from && row.occurredOn<=to);
   const actual=entries.reduce((n,row)=>n+(row.kind==="practice"?(row.minutes??0):0),0);
-  const planned=(sqlite.prepare(`SELECT COALESCE(SUM(requested_minutes),0) AS minutes FROM plan_item WHERE journey_id=? AND date BETWEEN ? AND ? AND status IN ('started','finished')`).get(journey,from,to) as {minutes:number}).minutes;
+  const planned=(sqlite.prepare(`WITH sessions AS (
+    SELECT requested_minutes,status,ROW_NUMBER() OVER (PARTITION BY date ORDER BY created_at DESC,rowid DESC) AS position
+    FROM plan_item WHERE journey_id=? AND date BETWEEN ? AND ? AND status!='undone'
+  ) SELECT COALESCE(SUM(requested_minutes),0) AS minutes FROM sessions WHERE status IN ('started','finished') OR position=1`).get(journey,from,to) as {minutes:number}).minutes;
   const body=process.env.AI_PROVIDER==="stub"?reviewBody.parse({
     headline:entries.length?"Your week in practice":"A week to begin",insights:[
       {title:"Practice time",text:`You recorded ${actual} minutes.`},{title:"Your notes",text:`You saved ${entries.length} entries this week.`},{title:"Next session",text:"Choose one small part of your goal to revisit."}],

@@ -62,3 +62,23 @@
   .journal-entry>h2,.journal-entry>small {grid-column:1;}
   .journal-entry>.reading {grid-column:2;grid-row:1 / span 2;margin:0;}
 }
+body {padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);padding-bottom:env(safe-area-inset-bottom);}
+.topbar {padding-top:env(safe-area-inset-top);}
+.review-sheet {padding-bottom:calc(var(--s-6) + env(safe-area-inset-bottom));}
+.document summary {cursor:pointer; min-height:44px;}
+.journey-shell {padding-bottom:calc(64px + env(safe-area-inset-bottom));}
+.journey-nav {position:fixed;inset:auto 0 0;z-index:2;display:flex;align-items:center;justify-content:space-around;background:var(--paper);border-top:1px solid var(--rule);min-height:64px;padding-bottom:env(safe-area-inset-bottom);}
+.journey-nav>a {min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:var(--s-1);color:var(--muted);font-size:12px;text-decoration:none;}
+.journey-nav>a[aria-current] {color:var(--ink);font-weight:600;}
+.journey-nav .rail-journey {display:none;}
+.journey-nav .log-nav {border-radius:50%;background:var(--ink);color:var(--paper);width:56px;height:56px;transform:translateY(calc(-1 * var(--s-3)));outline:var(--s-1) solid var(--paper);}
+@media(min-width:900px) {
+ .journey-shell {padding:0 0 0 232px;}
+ .journey-nav {inset:0 auto 0 0;width:232px;justify-content:flex-start;align-items:stretch;flex-direction:column;gap:var(--s-2);padding:var(--s-5);border-top:0;border-right:1px solid var(--rule);}
+ .journey-nav>a {flex-direction:row;justify-content:flex-start;gap:var(--s-3);font-size:15px;}
+ .journey-nav .rail-journey {display:flex;order:-2;color:var(--ink);}
+ .journey-nav .log-nav {order:-1;width:auto;height:44px;transform:none;outline:0;border-radius:var(--r-input);padding:0 var(--s-4);}
+ .journey-nav .log-nav span::after {content:" an entry";}
+ .journey-shell:has(.skill-link) .review-sheet {margin:0 0 0 auto;width:400px;height:100dvh;max-height:100dvh;border-radius:0;}
+}
+.journey-nav>a.log-nav[aria-current] {color:var(--paper);}

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect, notFound } from "next/navigation";
+import {preferences} from "@/lib/db/personal";
 import { getJourneyView } from "@/lib/db/queries";
 import { draftPlan, storePlan } from "@/lib/db/plans";
 import { sqlite } from "@/lib/db/client";
@@ -12,7 +13,7 @@ export async function generatePlan(journey:string, data:FormData) {
   const refinement = String(data.get("refinement") || "");
   const minutes = refinement === "Shorter" ? Math.max(5,Math.round(requested*0.7)) : requested;
   if (!Number.isInteger(minutes) || minutes<5 || minutes>600) throw Error("Choose 5 to 600 minutes.");
-  const context = [view.state?.summary, view.charter?.goal, data.get("energy"), String(data.get("note")||"").slice(0,1000)].filter(Boolean).join("\n");
+  const context = [preferences().time_of_day,view.state?.summary, view.charter?.goal, data.get("energy"), String(data.get("note")||"").slice(0,1000)].filter(Boolean).join("\n");
   const plan = await draftPlan(journey,minutes,refinement,context);
   const id = sqlite.transaction(()=>storePlan(journey,plan,"plan"))();
   redirect(`/j/${journey}/plan?plan=${id}`);

@@ -7,7 +7,7 @@ import { EntryReview } from "@/components/features/entry-review";
 import { ReviewSheet } from "@/components/features/review-sheet";
 import { getJourney } from "@/lib/db/queries";
 import { sqlite } from "@/lib/db/client";
-import { Button } from "@/components/ui/button";
+import {LogComposer} from "@/components/features/log-composer";
 
 export default async function Log({ params, searchParams }: PageProps<"/j/[id]/log">) {
   const { id } = await params;
@@ -25,7 +25,7 @@ export default async function Log({ params, searchParams }: PageProps<"/j/[id]/l
   async function save(data: FormData) {
     "use server";
     const note = String(data.get("note") ?? "").trim();
-    const rest = data.get("kind") === "rest";
+    const rest = data.get("kind") === "rest" || /^rest day(?:$|[.,!])/i.test(note);
     const duration = String(data.get("minutes") ?? "").trim();
     const minutes = rest || !duration ? null : Number(duration);
     if (!rest && !note) redirect(`/j/${id}/log?empty=1`);
@@ -46,14 +46,7 @@ export default async function Log({ params, searchParams }: PageProps<"/j/[id]/l
   return <main className="onboarding">
     <Link href={`/j/${id}`} className="back-link">← {journey.name}</Link>
     <h1>Log a session</h1>
-    <form action={save}>
-      <label>Session date<input type="date" name="date" required defaultValue={format(new Date(),"yyyy-MM-dd")} max={format(new Date(),"yyyy-MM-dd")} /></label>
-      <label>What did you do?<textarea defaultValue={plan?.blocks.map(block=>block.title).join(", ")} name="note" required maxLength={8000} placeholder="What clicked, or where did you get stuck?" /></label>
-      <label>Minutes (optional)<input defaultValue={plan?.blocks.reduce((sum,b)=>sum+b.minutes,0)} name="minutes" type="number" min="0" max="600" /></label>
-      <label>Energy<select name="energy" defaultValue=""><option value="">Unspecified</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
-      <Button>Save entry</Button>
-      <Button variant="ghost" name="kind" value="rest" formNoValidate>Log a rest day</Button>
-    </form>
+    <LogComposer save={save} date={format(new Date(),"yyyy-MM-dd")} text={plan?.blocks.map(block=>block.title).join(", ")??""} minutes={plan?.blocks.reduce((sum,block)=>sum+block.minutes,0)}/>
     {review && <ReviewSheet home={`/j/${id}`}><EntryReview key={review.id} entry={review.id} changes={changes} minutes={activity?.minutes ?? 0} summary={summary?.summary} resolution={review.status} names={Object.fromEntries(skills.map(skill=>[skill.id,skill.name]))}/></ReviewSheet>}
   </main>;
 }

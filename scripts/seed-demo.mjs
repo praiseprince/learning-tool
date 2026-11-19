@@ -8,6 +8,7 @@ const add = (id, name, domain, hue, goal, starting, names) => {
   db.prepare("INSERT INTO state_snapshot (id,journey_id,summary,changed_phrases_json,created_at) VALUES (?,?,?,?,?)").run(`${id}-state`,id,starting,"[]",now);
 };
 db.transaction(() => {
+  db.exec("DELETE FROM profile_fact WHERE source_entry_id IN (SELECT id FROM log_entry WHERE journey_id IN ('piano','physics'))");
   db.exec("DELETE FROM skill_event WHERE skill_id IN (SELECT id FROM skill WHERE journey_id IN ('piano','physics'))");
   for (const table of ["entry_time","extraction_answer","log_extraction"]) {
     db.exec(`DELETE FROM ${table} WHERE entry_id IN (SELECT id FROM log_entry WHERE journey_id IN ('piano','physics'))`);
@@ -41,6 +42,9 @@ add("physics","Physics","science",215,"Understand motion from first principles."
   }
   db.prepare("UPDATE journey SET last_seen_at=? WHERE id='piano'").run(subDays(new Date(now),3).toISOString());
 
+  for(const [index,text] of ["You slow scales down before breakfast.","Separate hands help you work through the jump.","You tap the rhythm before playing.","A metronome helps you return to scales.","You notice when a chord feels automatic.","You try quiet dynamics for contrast."].entries()) {
+    db.prepare("INSERT INTO profile_fact VALUES (?,?,'practice',?,'active',?,NULL)").run(`demo-fact-${index}`,text,`piano-entry-${[0,5,3,8,10,11][index]}`,now);
+  }
   const review={headline:"Steadier hands, one page at a time.",planned:120,actual:105,
     insights:[{title:"Reading",text:"You returned to the page even when you lost the count."},{title:"Technique",text:"Slow practice gave you time to notice the jump."},{title:"Next week",text:"Keep one short sight-reading block in the plan."}],suggestions:[]};
   db.prepare("INSERT INTO review VALUES (?,?,?,?,?,?)").run("piano-demo-review","piano",format(subDays(new Date(now),13),"yyyy-MM-dd"),format(subDays(new Date(now),7),"yyyy-MM-dd"),JSON.stringify(review),now);

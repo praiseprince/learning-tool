@@ -13,7 +13,8 @@
     "seed:demo": "node scripts/seed-demo.mjs",
     "shots": "node scripts/shots.mjs",
     "db:generate": "drizzle-kit generate",
-    "evals": "node evals/logs.mjs"
+    "evals": "node evals/logs.mjs",
+    "preshots": "npm run build"
   },
   "dependencies": {
     "better-sqlite3": "^13.2.0",
