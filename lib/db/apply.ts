@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { draftPlan, latestPlan, storePlan } from "./plans";
 import { sqlite } from "./client";
 import { LogExtraction } from "../ai/extraction";
 
@@ -11,13 +12,23 @@ export async function resolveExtraction(entry: string, data: FormData) {
     {id:string; journey_id:string; status:string; diff_json:string} | undefined;
   if (!proposal) throw Error("Suggestion unavailable.");
   const now = new Date().toISOString();
+  const applying = proposal.status === "pending" && !["undo","dismiss"].includes(String(data.get("intent")));
+  const previous = latestPlan(proposal.journey_id);
+  const minutes = previous?.blocks.reduce((sum,block)=>sum+block.minutes,0) ?? 30;
+  const plan = applying ? await draftPlan(proposal.journey_id,minutes,"",data.has("state") ? String(data.get("summary") ?? "").slice(0,240) : "") : null;
   sqlite.transaction(() => {
+    const live = sqlite.prepare("SELECT status,diff_json FROM proposal WHERE id=?").get(proposal.id) as {status:string;diff_json:string};
+    if (live.status !== proposal.status || live.diff_json !== proposal.diff_json) return;
     if (data.get("intent") === "undo" && proposal.status === "applied") {
-      const { before, created, snapshot } = JSON.parse(proposal.diff_json) as {before:Previous[];created:string[];snapshot:string|null};
+      const { before, created, snapshot, planId } = JSON.parse(proposal.diff_json) as {before:Previous[];created:string[];snapshot:string|null;planId?:string};
       for (const id of [...created, ...before.map(row=>row.id)]) {
         const latest = sqlite.prepare("SELECT entry_id,at FROM skill_event WHERE skill_id=? ORDER BY rowid DESC LIMIT 1").get(id) as {entry_id:string;at:string};
         const skill = sqlite.prepare("SELECT updated_at FROM skill WHERE id=?").get(id) as {updated_at:string};
         if (latest?.entry_id !== entry || latest.at !== skill?.updated_at) throw Error("This skill has changed since this entry.");
+      }
+      if (planId) {
+        sqlite.prepare("UPDATE proposal SET status='undone',resolved_at=? WHERE id=?").run(now,planId);
+        sqlite.prepare("UPDATE plan_item SET status='undone' WHERE id=?").run(planId);
       }
       for (const row of before) sqlite.prepare("UPDATE skill SET level=?,updated_at=? WHERE id=?").run(row.level,row.updated_at,row.id);
       for (const id of created) sqlite.prepare("DELETE FROM skill WHERE id=?").run(id);
@@ -32,6 +43,8 @@ export async function resolveExtraction(entry: string, data: FormData) {
       sqlite.prepare("UPDATE proposal SET status='dismissed',resolved_at=? WHERE id=?").run(now,proposal.id);
       return;
     }
+    const latest = sqlite.prepare("SELECT status FROM log_extraction WHERE entry_id=?").get(entry) as {status:string};
+    if (latest.status !== "ready" || data.get("reviewed") !== proposal.diff_json) throw Error("This suggestion has changed. Reopen the entry to review it.");
     const extraction = LogExtraction.parse(JSON.parse(proposal.diff_json));
     const before: Previous[] = [];
     const created: string[] = [];
@@ -64,7 +77,9 @@ export async function resolveExtraction(entry: string, data: FormData) {
         sqlite.prepare("INSERT INTO state_snapshot (id,journey_id,summary,source_entry_id,created_at) VALUES (?,?,?,?,?)").run(snapshot,proposal.journey_id,summary,entry,now);
       }
     }
-    sqlite.prepare("UPDATE proposal SET status='applied',diff_json=?,resolved_at=? WHERE id=?").run(JSON.stringify({extraction,before,created,snapshot}),now,proposal.id);
+    const planId = plan ? storePlan(proposal.journey_id,plan,entry) : null;
+    sqlite.prepare("UPDATE proposal SET status='applied',diff_json=?,resolved_at=? WHERE id=?").run(JSON.stringify({extraction,before,created,snapshot,planId}),now,proposal.id);
   })();
+  revalidatePath(`/j/${proposal.journey_id}/log`);
   revalidatePath(`/j/${proposal.journey_id}`);
 }

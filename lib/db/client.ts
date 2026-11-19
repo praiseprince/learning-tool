@@ -26,3 +26,10 @@ sqlite.exec(`
 `);
 sqlite.exec(`CREATE TABLE IF NOT EXISTS entry_time (entry_id TEXT PRIMARY KEY, minutes INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS skill_event (id TEXT PRIMARY KEY, skill_id TEXT NOT NULL, entry_id TEXT NOT NULL, level_after INTEGER NOT NULL, delta INTEGER NOT NULL, evidence_quote TEXT NOT NULL, at TEXT NOT NULL);`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS extraction_answer (
+  entry_id TEXT PRIMARY KEY, question TEXT NOT NULL, answer TEXT NOT NULL
+)`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS plan_item (
+  id TEXT PRIMARY KEY,journey_id TEXT NOT NULL,date TEXT NOT NULL,title TEXT NOT NULL,
+  why TEXT NOT NULL,blocks_json TEXT NOT NULL,status TEXT NOT NULL,requested_minutes INTEGER NOT NULL,created_at TEXT NOT NULL
+)`);

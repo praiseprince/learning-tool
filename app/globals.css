@@ -27,3 +27,26 @@
 .review-form textarea { display:block; width:100%; padding:var(--s-3); font-family:var(--font-reading),Georgia,serif; }
 .review-form input[type="number"], .review-form textarea { min-height:44px; color:var(--ink); background:var(--paper-sunk); border:1px solid var(--rule); border-radius:var(--r-input); }
 .review-form label { display:inline-flex; min-height:44px; gap:var(--s-2); align-items:center; }
+.review-sheet {
+  width:min(100%,560px);
+  max-width:100%;
+  max-height:85dvh;
+  margin:auto auto 0;
+  padding:var(--s-6) var(--gutter);
+  border:1px solid var(--rule);
+  border-radius:var(--r-sheet) var(--r-sheet) 0 0;
+  box-shadow:var(--shadow-sheet);
+  background:var(--paper);
+  color:var(--ink);
+}
+.review-sheet::backdrop { background:color-mix(in srgb,var(--ink) 35%,transparent); }
+.review-sheet input { accent-color:var(--ink); }
+@keyframes mark-in { from { opacity:0; transform:translateY(var(--s-1)); } to { opacity:1; transform:translateY(0); } }
+.marking-confirmation { animation:mark-in var(--dur-draw) var(--ease-out); }
+.result-track { background:var(--rule); height:var(--s-1); margin:var(--s-2) 0 var(--s-4); }
+.result-track i { display:block; height:100%; background:var(--mark-deep); animation:result-stroke var(--dur-draw) var(--ease-out) both; }
+.result-summary { background:linear-gradient(var(--mark),var(--mark)) left bottom / 100% 60% no-repeat; animation:result-wipe var(--dur-draw) var(--summary-delay) var(--ease-out) both; }
+.marking-confirmation { animation-fill-mode:both; }
+@keyframes result-stroke { from {width:var(--before);} to {width:var(--after);} }
+@keyframes result-wipe { from {background-size:0% 60%;} to {background-size:100% 60%;} }
+@media (prefers-reduced-motion:reduce) { .marking-result * {animation-delay:0ms!important;} }

@@ -16,7 +16,7 @@ try {
   await mkdir("design/current", { recursive: true });
   await waitForServer();
   const browser = await chromium.launch({ headless: true });
-  const routes = [["styleguide", "/styleguide"], ["home", "/j/piano"], ["log", "/j/piano/log"], ...(process.env.SHOTS_REVIEW_ENTRY ? [["understood", `/j/piano?entry=${encodeURIComponent(process.env.SHOTS_REVIEW_ENTRY)}`]] : []), ["skills", "/j/piano/skills"], ["goal", "/j/piano/goal"], ["new", "/new"]];
+  const routes = [["styleguide", "/styleguide"], ["home", "/j/piano"], ["log", "/j/piano/log"], ...(process.env.SHOTS_REVIEW_ENTRY ? [["understood", `/j/piano/log?entry=${encodeURIComponent(process.env.SHOTS_REVIEW_ENTRY)}`]] : []), ["skills", "/j/piano/skills"], ["goal", "/j/piano/goal"], ["new", "/new"]];
   for (const [name, width, height] of [["390", 390, 844], ["1280", 1280, 800]]) {
     for (const theme of ["light", "dark"]) {
       for (const [routeName, route] of routes) {
