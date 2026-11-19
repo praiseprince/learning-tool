@@ -708,3 +708,10 @@ input,textarea { unicode-bidi:plaintext; }
 .glist .gl-n { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; unicode-bidi:plaintext; }
 @media (max-width:899px) { .head-actions .btn--text { display:none; } }
 .glist li,.glist label { min-width:0; max-width:100%; } .glist label { display:flex; align-items:center; gap:var(--s2); } .glist label small { flex:none; margin-left:auto; } .glist .gl-n { unicode-bidi:isolate; text-align:start; }
+
+/* v14: tappable examples in the empty thread */
+.hello .example { all:unset; cursor:pointer; color:inherit; font:inherit; text-align:start; border-radius:4px; }
+.hello .example:hover { color:var(--ink); text-decoration:underline; text-decoration-color:var(--rule-strong); text-underline-offset:3px; }
+.hello .example:focus-visible { outline:2px solid var(--marker); outline-offset:2px; }
+.hello h2 { overflow-wrap:anywhere; }
+@media (max-height:700px) { .hello { padding-block:var(--s4); } .hello h2 { font-size:1.6rem; } .hello li:nth-child(n+3) { display:none; } }

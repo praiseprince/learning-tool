@@ -1,11 +1,22 @@
 "use client";
-import {useRef, useState, useTransition} from "react";
+import {useEffect, useRef, useState, useTransition} from "react";
 import {quick, send} from "@/app/chat-actions";
+
+const FILL = "marginalia:fill";
+
+/** An example sentence that drops itself into the message box, ready to edit and send. */
+export function Example({text}: {text: string}) {
+  return <button type="button" className="example" onClick={() => window.dispatchEvent(new CustomEvent(FILL, {detail: text}))}>“{text}”</button>;
+}
 
 /** The one message box. Enter sends, Shift+Enter adds a line, drop or attach files for feedback. */
 export function Composer({goal, busy}: {goal: string; busy: boolean}) {
   const [text, setText] = useState(""), [files, setFiles] = useState<File[]>([]), [err, setErr] = useState(""), [over, setOver] = useState(false), [pending, go] = useTransition();
   const ta = useRef<HTMLTextAreaElement>(null), pick = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const fill = (e: Event) => { const el = ta.current; setText(String((e as CustomEvent).detail ?? "")); if (el) requestAnimationFrame(() => { el.focus(); el.setSelectionRange(el.value.length, el.value.length); el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 180) + "px"; }); };
+    window.addEventListener(FILL, fill); return () => window.removeEventListener(FILL, fill);
+  }, []);
   const submit = () => {
     if (pending || (!text.trim() && !files.length)) return;
     const fd = new FormData(); fd.set("text", text); files.forEach(f => fd.append("files", f));

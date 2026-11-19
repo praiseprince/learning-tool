@@ -9,6 +9,11 @@ import {JobView} from "@/components/v2/job-view";
 import {EntryReview} from "@/components/features/entry-review";
 import {cancelJobInline} from "@/app/chat-actions";
 import {Live} from "./live";
+import {Example} from "./composer";
+import {goalDetail} from "@/lib/v2/goals";
+import {preferences} from "@/lib/db/personal";
+import {ago} from "@/lib/v2/when";
+import {todaySlot} from "@/lib/agent/week";
 import {MinutesCard, PlanCard, QuizCard, SaveAnswer, SuggestionCard, WeekCard} from "./cards";
 import {doneDays, weekById} from "@/lib/agent/week";
 import {nextDays} from "@/lib/agent/tasks";
@@ -56,11 +61,21 @@ export function Thread({goal}: {goal: string}) {
     return null;
   };
   return <div className="thread" role="log" aria-live="polite" aria-label="Conversation with the Guide">
-    {evs.length === 0 && <div className="hello"><h2>What would you like to do?</h2>
-      <p>I can plan today or your whole week, quiz you on your notes, find materials, make practice sheets, review work you attach, and answer questions from everything you’ve written.</p>
-      <ul><li>“I have 30 minutes and I’m a bit tired”</li><li>“Plan my week, I’m away on Thursday”</li><li>“I practised for 20 minutes and the second half went badly”</li></ul></div>}
+    {evs.length === 0 && <Hello goal={goal} />}
     {evs.map(e => { try { return one(e); } catch { return <p key={e.seq} className="msg-note">This message could not be shown.</p>; } })}
     <div id="thread-end" />
     <Live goal={goal} seq={st.seq} busy={st.busy} />
   </div>;
+}
+
+/** The empty thread opens on where the learner is, with sentences they can tap to start from. */
+function Hello({goal}: {goal: string}) {
+  const d = goalDetail(goal), step = d?.steps[d.current]?.title, slot = todaySlot(goal), mins = slot?.minutes || preferences().minutes;
+  const last = (sqlite.prepare("SELECT MAX(occurred_on) AS d FROM log_entry WHERE journey_id=?").get(goal) as {d: string | null}).d;
+  const title = slot ? (slot.minutes ? <>Today: <bdi>{slot.focus}</bdi></> : "Today is a rest day") : step ? <>Next: <bdi>{step}</bdi></> : "What would you like to do?";
+  const lead = slot?.minutes ? `${slot.minutes} minutes in your week plan. ` : slot ? "Your week plan has today off. " : "";
+  const examples = [`I have ${mins} minutes and I’m a bit tired`, step ? `Quiz me on ${step.replace(/^(The|A|An) /, w => w.toLowerCase())}` : "Quiz me on my notes", "Plan my week, I’m away on Thursday", "I practised for 20 minutes and the second half went badly"];
+  return <div className="hello"><h2>{title}</h2>
+    <p>{lead}{last ? `Last session ${ago(last)}.` : "No sessions yet."} Ask me to plan a session or your week, quiz you, find materials or review work you attach.</p>
+    <ul aria-label="Try saying">{examples.map(t => <li key={t}><Example text={t} /></li>)}</ul></div>;
 }

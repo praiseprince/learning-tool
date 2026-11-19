@@ -31,7 +31,7 @@ export function GoalPanel({goal}: {goal: string}) {
 
     <section><h3>Materials</h3>
       {mats.length ? <ul className="mini-list">{mats.slice(0, 4).map(m => <li key={m.id}><p className="mt">{m.url ? <a href={m.url} target="_blank" rel="noopener noreferrer">{m.title}</a> : m.title}<span className="muted small"> · {m.kind}</span></p>
-        <form action={savePointer.bind(null, goal, m.id)} className="ptr-form"><input name="pointer" defaultValue={m.pointer} placeholder="Where you are" aria-label={`Where you are in ${m.title}`} maxLength={140} /><button className="btn btn--text small">Save</button></form></li>)}</ul>
+        <form action={savePointer.bind(null, goal, m.id)} className="ptr-form"><input name="pointer" defaultValue={m.pointer} placeholder="Add page or time" aria-label={`Where you are in ${m.title}`} maxLength={140} /><button className="btn btn--text small">Save</button></form></li>)}</ul>
         : <p className="muted small">None yet. Say “find materials” or add one in <Link className="link" href={`/goals/${goal}?tab=materials`}>details</Link>.</p>}</section>
 
     <section><h3>Skills</h3>
