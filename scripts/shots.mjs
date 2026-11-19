@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { chromium } from "playwright";
 
 const port = 3100;
-const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "-p", String(port)], { stdio: "ignore" });
+const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", process.env.SHOTS_PRODUCTION ? "start" : "dev", "-p", String(port)], { stdio: "ignore" });
 const waitForServer = async () => {
   for (let attempt = 0; attempt < 40; attempt += 1) {
     try { if ((await fetch(`http://127.0.0.1:${port}/styleguide`)).ok) return; } catch { /* wait */ }
@@ -16,7 +16,7 @@ try {
   await mkdir("design/current", { recursive: true });
   await waitForServer();
   const browser = await chromium.launch({ headless: true });
-  const routes = [["styleguide", "/styleguide"], ["home", "/j/piano"], ["skills", "/j/piano/skills"], ["goal", "/j/piano/goal"], ["new", "/new"]];
+  const routes = [["styleguide", "/styleguide"], ["home", "/j/piano"], ["log", "/j/piano/log"], ["skills", "/j/piano/skills"], ["goal", "/j/piano/goal"], ["new", "/new"]];
   for (const [name, width, height] of [["390", 390, 844], ["1280", 1280, 800]]) {
     for (const theme of ["light", "dark"]) {
       for (const [routeName, route] of routes) {
