@@ -139,3 +139,7 @@ body {padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-r
  .v2-subnav {display:flex;gap:var(--s-3);flex-wrap:wrap;margin:0;}.v2-subnav h2 {display:none;}
  .v2-content {padding:var(--s-4) var(--gutter);}
 }
+.v2-content .v2-writing {min-height:45vh;line-height:1.65;}
+.v2-prose {font-family:var(--font-reading),serif;line-height:1.65;max-width:66ch;}
+.v2-prose pre,.v2-prose .katex-display,.v2-prose table {display:block;overflow-x:auto;max-width:100%;}
+.v2-prose :is(th,td) {padding:var(--s-2);border-bottom:1px solid var(--rule);}
