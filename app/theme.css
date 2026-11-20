@@ -813,3 +813,14 @@ body { line-height:1.6; letter-spacing:0; }
 .pin-change { display:grid; gap:var(--s3); width:min(100%, 20rem); }
 .pin-change label { display:grid; gap:var(--s1); font-family:var(--font-sans); font-size:var(--t-meta); color:var(--muted); }
 .pin-change input { min-height:36px; border:1px solid var(--rule-strong); border-radius:var(--r); background:var(--sheet); color:var(--ink); padding:0 var(--s3); font-family:var(--font-sans); font-size:var(--t-body); }
+
+/* phone and iPad: addresses and QR codes (always dark on white, in both themes, so cameras read them) */
+:root { --qr-ink:oklch(.16 0 0); --qr-paper:oklch(1 0 0); }
+.srow.access { align-items:flex-start; }
+.access .addr { font-family:var(--font-sans); font-size:var(--t-ui); overflow-wrap:anywhere; color:var(--ink); }
+.access .actions { margin-top:var(--s3); }
+.access .status { margin-left:var(--s2); font-weight:400; }
+.tunnel-url { margin-top:var(--s2) !important; }
+.qr { flex:none; margin:0; width:132px; padding:8px; border-radius:var(--r); background:var(--qr-paper); color:var(--qr-ink); border:1px solid var(--rule); }
+.qr svg { display:block; width:100%; height:auto; }
+@media (max-width:640px) { .srow.access .qr { width:148px; } }

@@ -44,3 +44,11 @@ export async function signOutAll() {
   await requireSignedIn(); const {signOutEverywhere} = await import("@/lib/auth"); signOutEverywhere();
   const {redirect} = await import("next/navigation"); redirect("/login");
 }
+
+/** Turns the Cloudflare quick tunnel on or off. */
+export async function setTunnel(on: boolean) {
+  await requireSignedIn();
+  const {hasPin} = await import("@/lib/auth"), t = await import("@/lib/tunnel");
+  if (on && !hasPin()) return {status: "failed" as const, error: "Set a PIN first: node scripts/pin.mjs"};
+  const s = on ? t.startTunnel() : t.stopTunnel(); revalidatePath("/you"); return s;
+}
