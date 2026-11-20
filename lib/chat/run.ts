@@ -19,6 +19,8 @@ export function classify(text: string): Intent {
   if (/^(quiz|test) me\b|\b(quiz|test) me (on|about)\b|\bflash ?cards?\b|\b(retrieval|recall) practice\b/.test(lower)) return {kind: "quiz"};
   if (/\b(make|write|create|give|generate)\b.{0,20}\b(practice|exercises?|worksheet|drills?|problems?)\b/.test(lower)) return {kind: "practice"};
   if (/^(i\s+|just\s+|today\s+i\s+|so far\s+i\s+)?(practi[sc]ed|practiced|did|played|ran|read|worked on|studied|finished|completed|sang|wrote|drilled|spent|tried|went)\b/.test(lower) || /^log\b/.test(lower)) return {kind: "log"};
+  // a longer message that asks something is a conversation, not a timer: the Guide can still propose a plan from it
+  if (t.length > 120 && t.includes("?") && !/\b(plan|session)\b/.test(lower)) return {kind: "ask"};
   if (/\b(plan|what should i do|what do i do|what now|what'?s next|what next|session)\b/.test(lower) || (minutes && /\b(have|got|only|spare|free|today|tonight|window)\b/.test(lower))) return {kind: "plan", minutes: minutes && minutes >= 5 && minutes <= 240 ? minutes : null};
   return {kind: "ask"};
 }

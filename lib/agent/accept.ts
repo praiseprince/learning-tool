@@ -25,6 +25,7 @@ export function accept(id: string): {goal: string; next: string} {
       if (p.type === "add_note") { const id2 = randomUUID(); storeDocument({id: id2, base: null, title: p.title || "Note from the Guide", body: p.body, kind: "note", journey: goal, author: "ai"}); next = `/notebook/d/${id2}`; }
       else if (p.type === "add_material") { addMaterial(goal, {title: p.title, url: p.url, notes: p.body.slice(0, 600), status: "queued", origin: "agent_unchecked"}); next = `/goals/${goal}?tab=materials&added=1`; }
       else if (p.type === "revise_goal") next = `/goals/${goal}/revise?text=${encodeURIComponent((p.body || p.title).slice(0, 800))}`;
+      else if (p.type === "remember") { remember(String(p.title), now); next = "/you#noticed"; }
       else if (p.type === "plan_today") next = `/?goal=${goal}&note=${encodeURIComponent((p.body || p.title).slice(0, 400))}`;
     } else if (r.kind === "agent_evidence") {
       const sk = sqlite.prepare("SELECT level FROM skill WHERE id=? AND journey_id=?").get(p.skill, goal) as {level: number} | undefined;
@@ -39,5 +40,11 @@ export function accept(id: string): {goal: string; next: string} {
     sqlite.prepare("UPDATE proposal SET status='accepted',resolved_at=? WHERE id=?").run(now, id);
   })();
   return {goal, next};
+}
+/** Keeps a fact about the learner (shown and editable in Settings, read by every Guide turn). Ignores an exact repeat. */
+export function remember(text: string, now = new Date().toISOString()) {
+  const t = text.replace(/\s+/g, " ").trim().slice(0, 500); if (!t) return;
+  if (sqlite.prepare("SELECT 1 FROM profile_fact WHERE status='active' AND lower(text)=lower(?)").get(t)) return;
+  sqlite.prepare("INSERT INTO profile_fact (id,text,kind,source_entry_id,status,created_at,edited_at) VALUES (?,?,'said',NULL,'active',?,NULL)").run(randomUUID(), t, now);
 }
 export function dismiss(id: string) { sqlite.prepare("UPDATE proposal SET status='dismissed',resolved_at=? WHERE id=? AND status='pending'").run(new Date().toISOString(), id); }

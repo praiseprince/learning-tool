@@ -41,6 +41,17 @@ test("profile facts and the knowledge map are exported", () => {
   assert.match(read("README.md"), /These files ARE your memory/);
 });
 
+test("a fact the learner accepts from chat is remembered by every later turn", async () => {
+  const {accept} = await import("../lib/agent/accept.ts");
+  const {Ask} = await import("../lib/agent/tasks.ts");
+  const p = Ask.parse({answer: "ok", sources: [], proposals: [{type: "remember", title: "Moving to Valencia in March.", body: "I'm moving to Valencia in March", why: "", url: ""}]}).proposals[0];
+  for (const id of ["r1", "r2"]) sqlite.prepare("INSERT INTO proposal VALUES (?,?,'agent_action',?,'pending','job',?,NULL)").run(id, goal, JSON.stringify(p), new Date().toISOString());
+  assert.equal(accept("r1").next, "/you#noticed");
+  accept("r2"); // the same fact twice is kept once
+  exportContext(goal);
+  assert.equal(read("about-me.md").match(/Moving to Valencia in March\./g)?.length, 1);
+});
+
 const turn = {root: "/w/es", job: "j1", schemaPath: "/w/es/jobs/j1/schema.json", schemaJson: '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object"}', resultPath: "/w/es/jobs/j1/result.json", web: false, images: [], model: "", rules: "RULES", resume: null as string | null, mcp: null as null | {name: string; command: string; args: string[]; env: Record<string, string>; tools: string[]}};
 const mcp = {name: "firecrawl", command: "/usr/bin/node", args: ["/app/lib/agent/firecrawl-mcp.ts"], env: {FIRECRAWL_URL: "http://127.0.0.1:3002"}, tools: ["read_page"]};
 

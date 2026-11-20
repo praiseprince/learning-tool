@@ -85,6 +85,7 @@ export async function acceptInline(goal: string, id: string): Promise<{go?: stri
     else if (p?.kind === "agent_evidence") addEvent(goal, "guide", {markdown: `Added that as evidence for **${p.payload.skillName}**.`});
     else if (p?.payload?.type === "add_note") addEvent(goal, "note", {doc: next.split("/").pop(), title: p.payload.title});
     else if (p?.payload?.type === "add_material") addEvent(goal, "guide", {markdown: `Added *${p.payload.title}* to your materials.`});
+    else if (p?.payload?.type === "remember") addEvent(goal, "guide", {markdown: "I'll keep that in mind from now on, in every goal. You can change it in **Settings**, under what I have noticed."});
     else if (p?.payload?.type === "plan_today") addEvent(goal, "minutes", {note: p.payload.body || p.payload.title});
     else go = next;
   } catch { /* already handled */ }

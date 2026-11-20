@@ -16,7 +16,7 @@ const {createGoal} = await import("../lib/v2/brief.ts");
 const {exportContext} = await import("../lib/agent/workspace.ts");
 const {addEvent} = await import("../lib/chat/events.ts");
 const {saveShared, refuse, sharedFrom} = await import("../lib/chat/files.ts");
-const {withFiles} = await import("../lib/chat/run.ts");
+const {withFiles, classify} = await import("../lib/chat/run.ts");
 const {attachmentNote, promptFor} = await import("../lib/agent/tasks.ts");
 after(() => { sqlite.close(); rmSync(dir, {recursive: true, force: true}); });
 
@@ -32,6 +32,12 @@ test("types and sizes are checked before anything is saved", () => {
   assert.match(refuse("song.mp3", 1000)!, /isn't supported/);
   assert.match(refuse("scan.pdf", 21 * 1024 * 1024)!, /over 20 MB/);
   assert.match(refuse("empty.txt", 0)!, /empty/);
+});
+
+test("a long message that asks something reaches the Guide, a short time window is a plan", () => {
+  assert.equal(classify("I have 25 minutes, what now?").kind, "plan");
+  assert.equal(classify("I just started a new job with a long commute, so from now on I can only study on the train for about 25 minutes. What should I read next?").kind, "ask");
+  assert.equal(classify("I practised scales for 20 minutes").kind, "log");
 });
 
 test("a message with files goes where its words point", () => {
