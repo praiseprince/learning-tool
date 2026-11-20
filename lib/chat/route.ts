@@ -14,7 +14,7 @@ export const QUICK_TEXT: Record<Quick, string> = {plan: "What should I do today?
 
 /** The last few messages, for questions (the whole chat is in context/conversation.md). */
 export function history(goal: string) {
-  return events(goal, 24).filter(e => (e.kind === "user" || e.kind === "guide") && e.payload.text !== undefined || e.kind === "guide").slice(-8)
+  return events(goal, 24).filter(e => e.status !== "queued" && e.status !== "withdrawn").filter(e => (e.kind === "user" || e.kind === "guide") && e.payload.text !== undefined || e.kind === "guide").slice(-8)
     .map(e => ({role: e.kind === "user" ? "user" as const : "guide" as const, text: String(e.payload.text ?? e.payload.markdown ?? "").slice(0, 1500)}));
 }
 export function agent(goal: string, kind: Parameters<typeof startJob>[1], input: Parameters<typeof startJob>[2]) {

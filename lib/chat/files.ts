@@ -50,7 +50,7 @@ export type SharedRow = Shared & {seq: number; at: string; said: string};
 /** Every file shared in this goal's chat, newest first, with the message it came with. */
 export function sharedFiles(goal: string): SharedRow[] {
   ensureChat();
-  const rows = sqlite.prepare("SELECT seq,payload_json,created_at FROM chat_event WHERE goal=? AND kind='user' AND json_array_length(json_extract(payload_json,'$.files'))>0 ORDER BY seq DESC").all(goal) as {seq: number; payload_json: string; created_at: string}[];
+  const rows = sqlite.prepare("SELECT seq,payload_json,created_at FROM chat_event WHERE goal=? AND kind='user' AND status!='withdrawn' AND json_array_length(json_extract(payload_json,'$.files'))>0 ORDER BY seq DESC").all(goal) as {seq: number; payload_json: string; created_at: string}[];
   return rows.flatMap(r => { const p = JSON.parse(r.payload_json); return sharedFrom(p).filter(f => f.stored).map(f => ({...f, seq: r.seq, at: r.created_at, said: String(p.text ?? "")})); });
 }
 export const fileHref = (goal: string, stored: string, download = false) => `/api/files/${goal}/${encodeURIComponent(stored)}${download ? "?download" : ""}`;

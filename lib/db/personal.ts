@@ -1,5 +1,5 @@
 import {dirname,join,resolve} from "node:path";
-import {rmSync} from "node:fs";
+import {existsSync,readdirSync,readFileSync,renameSync,rmSync,statSync} from "node:fs";
 import {sqlite} from "./client.ts";
 import {workspaceRoot} from "../agent/workspace.ts";
 export function preferences() {
@@ -23,5 +23,19 @@ export function clearPersonalData(){
   for(const table of personalTables())sqlite.exec(`DELETE FROM ${table}`);
  })();
 }
-/** Removes the agent's per-goal workspaces (exported context, uploads, generated files). */
-export function clearWorkspaces(){ try { rmSync(workspaceRoot(),{recursive:true,force:true}); } catch { /* nothing to remove */ } }
+/** Clears the agent's per-goal workspaces. Uploads and generated files are kept beside the database backup (`keepAs`), never just deleted. */
+export function clearWorkspaces(keepAs?:string){
+ const root=workspaceRoot(); if(!existsSync(root))return;
+ try { if(keepAs){ renameSync(root,keepAs); return; } } catch { /* another disk: fall through */ }
+ try { rmSync(root,{recursive:true,force:true}); } catch { /* nothing to remove */ }
+}
+/** Files that belong to the learner: what they shared (inbox/) and what the Guide made for them (out/). Context and job logs are derived and left out. */
+export function workspaceFiles(){
+ const root=workspaceRoot(),out:{path:string;data:Buffer;date:Date}[]=[]; if(!existsSync(root))return out;
+ const walk=(dir:string,rel:string)=>{ for(const e of readdirSync(dir,{withFileTypes:true})){ const p=join(dir,e.name),r=`${rel}/${e.name}`; if(e.isDirectory())walk(p,r); else if(e.isFile()){ const st=statSync(p); if(st.size<=50*1024*1024)out.push({path:r,data:readFileSync(p),date:st.mtime}); } } };
+ for(const goal of readdirSync(root,{withFileTypes:true}).filter(d=>d.isDirectory()).map(d=>d.name)){
+  if(existsSync(join(root,goal,"inbox")))walk(join(root,goal,"inbox"),`files/${goal}/shared`);
+  if(existsSync(join(root,goal,"out")))walk(join(root,goal,"out"),`files/${goal}/made-by-the-guide`);
+ }
+ return out;
+}

@@ -141,7 +141,7 @@ type SharedFile = {name: string; stored: string; type: string; text?: string};
 const filesIn = (p: Record<string, unknown>): SharedFile[] => Array.isArray(p.files) ? p.files.map(f => typeof f === "string" ? {name: f, stored: "", type: "file"} : f as SharedFile).filter(f => f?.name) : [];
 /** The whole chat for this goal, as the learner saw it. Cards are summarised; their details live in the other files. */
 function writeConversation(goal: string, ctx: string) {
-  const rows = sqlite.prepare("SELECT kind,payload_json,created_at FROM chat_event WHERE goal=? AND kind IN ('user','guide','week','quiz','suggestions','note','plan','log') ORDER BY seq").all(goal) as Ev[];
+  const rows = sqlite.prepare("SELECT kind,payload_json,created_at FROM chat_event WHERE goal=? AND kind IN ('user','guide','week','quiz','suggestions','note','plan','log') AND status NOT IN ('queued','withdrawn') ORDER BY seq").all(goal) as Ev[];
   const line = (r: Ev) => {
     let p: Record<string, unknown> = {}; try { p = JSON.parse(r.payload_json); } catch { /* keep empty */ }
     const at = r.created_at.slice(0, 16).replace("T", " "), body = String(p.text ?? p.markdown ?? "");

@@ -44,5 +44,11 @@ test("a waiting message can be taken back, and stopping a job lets the next one 
   cancelJob(job.id);
   await until(() => events(goal).some(e => e.kind === "guide" && /What about pins/.test(e.payload.markdown ?? "")));
   assert.equal(events(goal).find(e => e.seq === dropped.seq)?.status, "withdrawn");
+  const {exportContext} = await import("../lib/agent/workspace.ts");
+  const {readFileSync} = await import("node:fs");
+  const {searchMessages} = await import("../lib/chat/events.ts");
+  exportContext(goal);
+  assert.doesNotMatch(readFileSync(join(process.env.MARGINALIA_WORKSPACES!, goal, "context", "conversation.md"), "utf8"), /Never mind/, "the Guide never sees a message that was taken back");
+  assert.deepEqual(searchMessages("never mind"), []);
   assert.ok(!events(goal).some(e => e.kind === "guide" && /Never mind|discovered attack/.test(e.payload.markdown ?? "")), "nothing from the withdrawn message or the stopped job");
 });

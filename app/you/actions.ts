@@ -16,9 +16,9 @@ export async function editFact(id:string,data:FormData) {
 }
 export async function deleteData(data:FormData) {
  if(data.get("confirmation")!=="DELETE")throw Error("Type DELETE to confirm.");
- backupBeforeReset();
+ const backup=backupBeforeReset();
  clearPersonalData();
- clearWorkspaces();
+ clearWorkspaces(backup.replace(/\.db$/,"-files"));
  revalidatePath("/","layout");
 }
 export async function chooseAi(data:FormData) {
