@@ -29,7 +29,7 @@ export function claudeArgs(t: Turn) {
   const allowed = ["Read(./**)", "Grep", "Glob", `Write(./out/${t.job}/**)`, `Edit(./out/${t.job}/**)`, ...(t.web ? ["WebSearch", "WebFetch"] : []), ...(m ? m.tools.map(x => `mcp__${m.name}__${x}`) : [])];
   return ["-p", "--output-format", "stream-json", "--verbose", "--json-schema", plainSchema(t.schemaJson), "--setting-sources", "", "--strict-mcp-config",
     ...(m ? ["--mcp-config", JSON.stringify({mcpServers: {[m.name]: {type: "stdio", command: m.command, args: m.args, env: m.env}}})] : []),
-    "--permission-mode", "dontAsk", "--tools", tools.join(","), "--allowedTools", ...allowed, "--append-system-prompt", t.rules,
+    "--include-partial-messages", "--permission-mode", "dontAsk", "--tools", tools.join(","), "--allowedTools", ...allowed, "--append-system-prompt", t.rules,
     ...(t.model ? ["--model", t.model] : []), ...(t.resume ? ["--resume", t.resume] : [])];
 }
 
@@ -109,4 +109,31 @@ export function claudeSteps(e: any, root: string): Step[] { // eslint-disable-li
     else if ((b.name === "Write" || b.name === "Edit") && i.file_path) out.push({at, kind: "write", text: `Writing ${String(i.file_path).split("/").pop()}`});
   }
   return out;
+}
+
+/** The text of one string field in JSON that is still being written, decoded as far as it goes (null until the field starts). */
+export function partialString(json: string, field: string): string | null {
+  const m = new RegExp(`"${field}"\\s*:\\s*"`).exec(json); if (!m) return null;
+  let out = "", i = m.index + m[0].length;
+  const esc: Record<string, string> = {n: "\n", t: "\t", r: "", b: "", f: "", '"': '"', "\\": "\\", "/": "/"};
+  while (i < json.length) {
+    const ch = json[i];
+    if (ch === '"') break;
+    if (ch !== "\\") { out += ch; i++; continue; }
+    const nx = json[i + 1]; if (nx === undefined) break;
+    if (nx === "u") { const hex = json.slice(i + 2, i + 6); if (hex.length < 4) break; out += String.fromCharCode(parseInt(hex, 16)); i += 6; continue; }
+    out += esc[nx] ?? nx; i += 2;
+  }
+  return out;
+}
+/** Follows Claude Code's partial messages and returns the answer written so far each time it grows (Claude only: Codex reports whole items). */
+export function draftReader(field: string) {
+  let idx = -1, json = "";
+  return (e: any): string | null => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (e?.type !== "stream_event") return null;
+    const ev = e.event;
+    if (ev?.type === "content_block_start" && ev.content_block?.type === "tool_use" && ev.content_block.name === "StructuredOutput") { idx = ev.index; json = ""; return null; }
+    if (ev?.type === "content_block_delta" && ev.index === idx && ev.delta?.type === "input_json_delta") { json += ev.delta.partial_json ?? ""; return partialString(json, field); }
+    return null;
+  };
 }

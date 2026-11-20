@@ -15,7 +15,7 @@ const {sqlite} = await import("../lib/db/client.ts");
 const {createGoal} = await import("../lib/v2/brief.ts");
 const {exportContext} = await import("../lib/agent/workspace.ts");
 const {addEvent} = await import("../lib/chat/events.ts");
-const {claudeArgs, codexArgs, claudeSteps, claudeResult, commandLabel} = await import("../lib/agent/cli.ts");
+const {claudeArgs, codexArgs, claudeSteps, claudeResult, commandLabel, partialString, draftReader} = await import("../lib/agent/cli.ts");
 const {sessionToResume, recordTurn, endSession, contextChanges, resumeNote, WARM_MS, MAX_TURNS, MAX_INPUT} = await import("../lib/agent/session.ts");
 after(() => { sqlite.close(); rmSync(dir, {recursive: true, force: true}); });
 
@@ -144,4 +144,18 @@ test("Codex commands read as what they were for", () => {
   assert.equal(commandLabel("'rg --files context'"), "Looking through your files");
   assert.equal(commandLabel("'python3 out/j1/make.py'"), "Running: python3 out/j1/make.py");
   assert.equal(commandLabel(`"tail -35 context/conversation.md\nrg -in 'divided line|sun analogy' context/{notes,sessions.md}"`), "Reading conversation.md · Searching your files for “divided line, sun analogy”");
+});
+
+test("an answer can be read while its JSON is still being written", () => {
+  assert.equal(partialString('{"sources":[],"answ', "answer"), null);
+  assert.equal(partialString('{"answer": "Line one\\nTwo \\"quoted\\" caf\\u00e9', "answer"), 'Line one\nTwo "quoted" café');
+  assert.equal(partialString('{"answer":"cut at \\', "answer"), "cut at ", "a half-written escape waits for the rest");
+  assert.equal(partialString('{"answer":"cut at \\u00', "answer"), "cut at ");
+  assert.equal(partialString('{"answer":"done","sources":[]}', "answer"), "done");
+  const read = draftReader("answer"), ev = (event: unknown) => ({type: "stream_event", event});
+  assert.equal(read(ev({type: "content_block_start", index: 1, content_block: {type: "tool_use", name: "StructuredOutput", input: {}}})), null);
+  assert.equal(read(ev({type: "content_block_delta", index: 0, delta: {type: "text_delta", text: "x"}})), null, "other blocks are ignored");
+  read(ev({type: "content_block_delta", index: 1, delta: {type: "input_json_delta", partial_json: '{"answer":"Hel'}}));
+  assert.equal(read(ev({type: "content_block_delta", index: 1, delta: {type: "input_json_delta", partial_json: 'lo'}})), "Hello");
+  assert.ok(claudeArgs(turn).includes("--include-partial-messages"));
 });

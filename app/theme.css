@@ -775,3 +775,6 @@ body { line-height:1.6; letter-spacing:0; }
 /* messages typed while the Guide is busy */
 .msg.user.waiting { border-style:dashed; } .msg.user.withdrawn { opacity:.6; } .msg.user.withdrawn p { text-decoration:line-through; text-decoration-color:var(--muted); }
 .msg-state { margin-top:6px; font-size:var(--t-meta); color:var(--muted); } .msg-state .link-btn { font-size:var(--t-meta); }
+
+/* an answer shown while it is being written */
+.run.drafting { display:grid; gap:var(--s2); } .run.drafting .md { font-size:1rem; line-height:1.7; } .run.drafting .md :first-child { margin-top:0; }
