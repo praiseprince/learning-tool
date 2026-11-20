@@ -55,7 +55,7 @@ Run `npm ci` after upgrading and start with `npm run local`. Opening the V2 work
 
 ## Development
 
-Run `npm run lint` and `npm run build`. `npm run seed:demo` fills a database with demo journeys (use a disposable `DATABASE_URL`); `npm test` runs the week-plan and quiz tests. `npm run shots` builds, seeds throwaway showcase and worst-case data, and screenshots every screen at 390 and 1280px in light and dark (into `design/current`); it fails on overflow, page errors or a non-200 page. The 3D Atlas needs WebGL; for headless screenshots launch Chromium with `--use-angle=swiftshader --enable-unsafe-swiftshader`. In `next dev`, open the app via `localhost`, not `127.0.0.1`.
+Run `npm run lint` and `npm run build`. `npm run seed:demo` fills a database with demo journeys (use a disposable `DATABASE_URL`); `npx tsx scripts/seed-live-demo.mts` fills an empty database with five real goals (Spanish, linear algebra, a half marathon, fingerstyle guitar, the Roman Republic), three weeks of history and notes, then runs the live Guide on each; `npm test` runs the week-plan and quiz tests. `npm run shots` builds, seeds throwaway showcase and worst-case data, and screenshots every screen at 390 and 1280px in light and dark (into `design/current`); it fails on overflow, page errors or a non-200 page. The 3D Atlas needs WebGL; for headless screenshots launch Chromium with `--use-angle=swiftshader --enable-unsafe-swiftshader`. In `next dev`, open the app via `localhost`, not `127.0.0.1`.
 
 ## Learning entries and stats
 

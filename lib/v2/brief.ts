@@ -130,8 +130,9 @@ export function addRoute(goal: string, charter: string, roadmap: Brief["roadmap"
   roadmap.forEach((p, i) => {
     const named = p.skills.map(n => ids.get(n.toLowerCase())).find(Boolean) ?? ids.get(firstTarget.name.toLowerCase())!;
     sqlite.prepare("INSERT INTO route_step VALUES(?,?,?,?,?)").run(randomUUID(), route, "legacy-" + named, i, JSON.stringify({
-      key: `phase-${i + 1}`, title: `${p.phase}${p.focus ? ": " + p.focus : ""}`.slice(0, 200), necessity: "core",
-      reason: p.outcomes.join(" · ") || p.focus || p.phase, approach: p.skills.join(", ") || p.focus || "Follow the phase plan.", minutes: 30, dependencies: i ? [`phase-${i}`] : [],
+      // The phase name is the step's title; its focus is the line under it. Long "phase: focus" titles crowded every list.
+      key: `phase-${i + 1}`, title: p.phase.slice(0, 200), focus: p.focus, outcomes: p.outcomes, necessity: "core",
+      reason: p.focus || p.outcomes.join(" · ") || p.phase, approach: p.skills.join(", ") || p.focus || "Follow the phase plan.", minutes: 30, dependencies: i ? [`phase-${i}`] : [],
     }));
   });
 }
@@ -193,6 +194,7 @@ export function currentBrief(goal: string): Brief {
     currentPosition: (snap?.summary ?? c?.pos ?? "").slice(0, 1500), constraints: (c?.constraints ?? "").slice(0, 600),
     skills: sk.slice(0, 30).map(s => ({name: s.name, description: (s.description ?? "").slice(0, 240), status: s.level > 0 ? "have" : "target", level: Math.min(5, s.level), evidence: "",
       requires: (JSON.parse(s.pre) as string[]).map(i => byId.get(i)).filter((x): x is string => !!x).slice(0, 4)})),
-    roadmap: steps.slice(0, 10).map(r => { const x = JSON.parse(r.c); return {phase: String(x.title).split(":")[0].slice(0, 60), focus: String(x.title).includes(":") ? String(x.title).split(":").slice(1).join(":").trim().slice(0, 160) : "", outcomes: String(x.reason ?? "").split(" · ").filter(Boolean).slice(0, 5).map((o: string) => o.slice(0, 140)), skills: String(x.approach ?? "").split(", ").filter(Boolean).slice(0, 8).map((o: string) => o.slice(0, 80))}; }),
+    roadmap: steps.slice(0, 10).map(r => { const x = JSON.parse(r.c), split = typeof x.focus !== "string"; // older steps packed the focus into the title
+      return {phase: String(x.title).split(split ? ":" : "\u0000")[0].slice(0, 60), focus: (split ? (String(x.title).includes(":") ? String(x.title).split(":").slice(1).join(":").trim() : "") : x.focus).slice(0, 160), outcomes: (Array.isArray(x.outcomes) ? x.outcomes.map(String) : String(x.reason ?? "").split(" · ")).filter(Boolean).slice(0, 5).map((o: string) => o.slice(0, 140)), skills: String(x.approach ?? "").split(", ").filter(Boolean).slice(0, 8).map((o: string) => o.slice(0, 80))}; }),
   });
 }

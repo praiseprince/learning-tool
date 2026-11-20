@@ -71,8 +71,8 @@ export function startJob(goal: string, kind: JobKind, input: JobInput = {}): str
     if (!ok) { save(id, {status: "failed", error: why ?? "The Guide could not finish.", steps, finished: true}); addEvent(goal, "guide", {markdown: `${why ?? "I could not finish that."} Your data is unchanged. You can try again.`, tone: "error"}); return; }
     try {
       const raw = JSON.parse(readFileSync(join(root, "jobs", id, "result.json"), "utf8")), result = SCHEMAS[kind].parse(raw);
+      await ingest({id, goal, kind, input}, result as never); // links are checked here; only then is the job done
       save(id, {result, steps, finished: true, status: "done"});
-      await ingest({id, goal, kind, input}, result as never);
     } catch (e) { const msg = e instanceof z.ZodError ? "The Guide's answer did not match the expected shape." : String((e as Error).message).slice(0, 200); save(id, {status: "failed", error: msg, steps, finished: true}); addEvent(goal, "guide", {markdown: `${msg} Your data is unchanged. You can try again.`, tone: "error"}); }
   };
 
