@@ -1,7 +1,7 @@
 // Sign-in with a PIN. Every device signs in once and stays signed in until the sign-in expires (30 days).
 // The PIN is stored only as a scrypt hash; sessions only as a SHA-256 of their token. Wrong PINs lock sign-in for a while,
 // for everyone (an address can be faked on the Wi-Fi), doubling each time, so guessing a 4-digit PIN would take years.
-// `node scripts/pin.mjs` (on the Mac) sets the PIN and clears a lockout.
+// The Mac app's menu bar (Set PIN…, Unlock Sign-in) or, in a checkout, `node scripts/pin.mjs` sets the PIN and clears a lockout.
 import {createHash, randomBytes, scryptSync, timingSafeEqual} from "node:crypto";
 import {sqlite} from "./db/client.ts";
 
@@ -52,9 +52,9 @@ export function lockState(now = Date.now()) {
 /** Checks a PIN against the lockout, and records the attempt. */
 export function checkPin(pin: string, source: string): {ok: true} | {error: string} {
   ensure();
-  if (!hasPin()) return {error: "No PIN is set yet. On the Mac, run: node scripts/pin.mjs"};
+  if (!hasPin()) return {error: "No PIN is set yet. On the Mac, use the Marginalia menu-bar icon: Set PIN…"};
   const lock = lockState();
-  if (lock.until) return {error: `Too many wrong PINs. Try again ${waitText(lock.until - Date.now())}.`};
+  if (lock.until) return {error: `Too many wrong PINs. Try again ${waitText(lock.until - Date.now())}, or unlock from the Marginalia menu-bar icon on the Mac.`};
   const ok = /^\d{4,12}$/.test(pin) && pinMatches(pin), now = new Date();
   sqlite.prepare("INSERT INTO auth_attempt(at,ok,source) VALUES (?,?,?)").run(now.toISOString(), ok ? 1 : 0, source.slice(0, 80));
   sqlite.prepare("DELETE FROM auth_attempt WHERE at<?").run(new Date(now.getTime() - 30 * 86400_000).toISOString());

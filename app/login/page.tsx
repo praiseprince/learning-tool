@@ -12,7 +12,7 @@ export default async function Login({searchParams}: {searchParams: Promise<{next
     <div className="login-card">
       <p className="login-mark">Marginalia</p>
       <h1>Enter your PIN</h1>
-      {hasPin() ? <PinForm next={next} /> : <p className="prose">No PIN is set yet. On the Mac running Marginalia, run <code>node scripts/pin.mjs</code> in the project folder.</p>}
+      {hasPin() ? <PinForm next={next} /> : <p className="prose">No PIN is set yet. On the Mac, click the Marginalia icon in the menu bar and choose <b>Set PIN…</b></p>}
       <p className="hint">This device stays signed in for 30 days.</p>
     </div>
   </main>;

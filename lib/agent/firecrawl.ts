@@ -25,7 +25,7 @@ async function answers() {
 async function launch(): Promise<boolean> {
   const bin = firecrawlBin(), u = new URL(firecrawlUrl());
   if (!bin || g.__firecrawl || !["127.0.0.1", "localhost"].includes(u.hostname)) return false;
-  const home = join(process.cwd(), ".tools", "firecrawl-home"); mkdirSync(home, {recursive: true});
+  const home = process.env.FIRECRAWL_HOME || join(process.cwd(), ".tools", "firecrawl-home"); mkdirSync(home, {recursive: true});
   const child = spawn(bin, ["serve", "--host", "127.0.0.1", "--port", u.port || "3002"], {stdio: "ignore",
     env: {...process.env, FIRECRAWL_CLOUD: "off", FIRECRAWL_LOCAL_HOME: home}});
   g.__firecrawl = child;

@@ -46,3 +46,9 @@ next-env.d.ts
 
 # Firecrawl Local, built by npm install (scripts/firecrawl-install.mjs)
 /.tools/
+
+# Mac app build output
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/dist/
+desktop/.cache/

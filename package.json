@@ -20,7 +20,8 @@
     "local:prod": "next build && node scripts/local.mjs --prod",
     "test": "node --import tsx --test \"tests/*.test.mts\"",
     "postinstall": "node scripts/firecrawl-install.mjs",
-    "setup:firecrawl": "node scripts/firecrawl-install.mjs --force"
+    "setup:firecrawl": "node scripts/firecrawl-install.mjs --force",
+    "app": "node desktop/bundle.mjs && cd desktop && tauri build"
   },
   "dependencies": {
     "@types/three": "^0.187.0",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",
+    "@tauri-apps/cli": "^2.12.5",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.5",

@@ -49,6 +49,6 @@ export async function signOutAll() {
 export async function setTunnel(on: boolean) {
   await requireSignedIn();
   const {hasPin} = await import("@/lib/auth"), t = await import("@/lib/tunnel");
-  if (on && !hasPin()) return {status: "failed" as const, error: "Set a PIN first: node scripts/pin.mjs"};
+  if (on && !hasPin()) return {status: "failed" as const, error: "Set a PIN first, from the Marginalia menu-bar icon (Set PIN…)."};
   const s = on ? t.startTunnel() : t.stopTunnel(); revalidatePath("/you"); return s;
 }

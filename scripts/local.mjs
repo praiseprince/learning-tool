@@ -8,5 +8,11 @@ const networks=Object.values(networkInterfaces()).flat().filter(address=>address
 for(const {address} of networks)console.log("Wi-Fi address: http://"+address+":"+port);
 const child=spawn(process.execPath,["node_modules/next/dist/bin/next",prod?"start":"dev","--hostname","0.0.0.0",...args],{stdio:"inherit",env:{...process.env,MARGINALIA_V2:"1",PORT:port}});
 for(const signal of ["SIGINT","SIGTERM"])process.on(signal,()=>child.kill(signal));
+// Started by the Mac app: when the app is gone (even force-quit), stop the server and everything it started.
+const parent=Number(process.env.MARGINALIA_PARENT_PID);
+if(parent>1){
+  const alive=()=>{try{process.kill(parent,0);return true;}catch{return false;}};
+  setInterval(()=>{if(alive())return;try{process.kill(-process.pid,"SIGTERM");}catch{child.kill("SIGTERM");}setTimeout(()=>{try{process.kill(-process.pid,"SIGKILL");}catch{/* gone */}},3000).unref();},1000).unref();
+}
 const [code,signal]=await once(child,"exit");
 process.exitCode=code??(signal==="SIGINT"?130:1);

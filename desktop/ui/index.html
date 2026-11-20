@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Marginalia</title>
+<style>
+  :root { --paper:#f6f3ec; --ink:#211f1c; --muted:#6b665e; --danger:#b4232a; color-scheme:light dark; }
+  @media (prefers-color-scheme: dark) { :root { --paper:#1c1a18; --ink:#ece9e2; --muted:#a39e95; --danger:#f08a80; } }
+  html, body { height:100%; margin:0; background:var(--paper); color:var(--ink); }
+  body { display:grid; place-items:center; font:15px/1.5 -apple-system, system-ui, sans-serif; -webkit-user-select:none; user-select:none; }
+  main { max-width:26rem; padding:24px; }
+  h1 { font:italic 500 28px/1.2 Georgia, "Times New Roman", serif; margin:0 0 12px; }
+  p { margin:0; color:var(--muted); }
+  #err { color:var(--danger); margin-top:12px; white-space:pre-wrap; -webkit-user-select:text; user-select:text; }
+  .dots::after { content:""; animation:dots 1.2s steps(4) infinite; }
+  @keyframes dots { 0% { content:""; } 25% { content:"."; } 50% { content:".."; } 75% { content:"..."; } }
+  @media (prefers-reduced-motion: reduce) { .dots::after { animation:none; content:"…"; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Marginalia</h1>
+  <p id="msg"><span class="dots">Starting</span></p>
+  <p id="err" hidden></p>
+</main>
+<script>
+  // The app calls these while the server starts.
+  window.mgStatus = text => { document.getElementById("msg").innerHTML = '<span class="dots"></span>'; document.querySelector("#msg .dots").textContent = text; };
+  window.mgError = text => { document.getElementById("msg").textContent = "Marginalia could not start."; const e = document.getElementById("err"); e.textContent = text; e.hidden = false; };
+</script>
+</body>
+</html>
