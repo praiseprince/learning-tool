@@ -12,6 +12,8 @@ const toml = (v: unknown): string => Array.isArray(v) ? `[${v.map(toml).join(","
 export function codexArgs(t: Turn) {
   const m = t.mcp && t.web ? t.mcp : null, k = m ? `mcp_servers.${m.name}` : "";
   return ["exec", ...(t.resume ? ["resume"] : []), "--json", "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules", "-c", 'sandbox_mode="workspace-write"',
+    // the workspace is its own project: without this Codex walks up to the app's git root and loads the developer AGENTS.md
+    "-c", "project_root_markers=[]",
     ...(t.model ? ["--model", t.model] : []), ...(t.web ? ["-c", 'web_search="live"'] : []),
     ...(m ? ["-c", `${k}.command=${toml(m.command)}`, "-c", `${k}.args=${toml(m.args)}`, "-c", `${k}.env=${toml(m.env)}`, "-c", `${k}.startup_timeout_sec=20`, "-c", `${k}.default_tools_approval_mode="approve"`, "-c", `${k}.tool_timeout_sec=90`] : []),
     "--output-schema", t.schemaPath, "-o", t.resultPath, ...t.images.flatMap(p => ["-i", p]), ...(t.resume ? [t.resume] : []), "-"];
@@ -53,6 +55,19 @@ export function claudeResult(e: any): {ok: true; output: unknown} | {ok: false; 
 }
 
 const now = () => new Date().toISOString();
+/** A workspace path as the learner would say it: "sessions.md", "your file essay.pdf". */
+export const pathLabel = (r: string) => r.startsWith("inbox/") ? `your file ${r.slice(6).replace(/^[a-f0-9]{8}-/, "").replace(/\.txt$/, "")}` : r.replace(/^(\.\/)?context\//, "");
+/** What a shell command the agent ran was for, in plain words, when that is clear; otherwise the command itself. */
+export function commandLabel(cmd: string): string {
+  const c = cmd.replace(/^\S*sh -lc\s+/, "").replace(/^'(.*)'$/s, "$1").trim();
+  const expand = (t: string) => { const m = /^(.*)\{([^{}]+)\}(.*)$/.exec(t); return m ? m[2].split(",").map(x => m[1] + x + m[3]) : [t]; };
+  const paths = [...new Set((c.match(/(?:\.\/)?(?:context|inbox)\/[^\s'";|&><)]+/g) ?? []).flatMap(expand).map(pathLabel).filter(x => x && !/[*?]/.test(x)))];
+  const search = /^\s*(rg|grep)\b/.test(c) && /(?:rg|grep)\s+(?:-[\w-]+\s+)*(?:"([^"]+)"|'([^']+)'|(\S+))/.exec(c);
+  if (search && !/--files\b/.test(c)) return `Searching your files for “${(search[1] ?? search[2] ?? search[3]).slice(0, 60)}”`;
+  if (/^\s*(cat|sed|head|tail|nl|less|wc|pdftotext|awk)\b/.test(c) && paths.length) return `Reading ${paths.slice(0, 4).join(", ")}${paths.length > 4 ? ` and ${paths.length - 4} more` : ""}`;
+  if (/^\s*(ls|rg --files|find|tree)\b/.test(c)) return "Looking through your files";
+  return `Running: ${c.slice(0, 110)}`;
+}
 const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u.slice(0, 60); } };
 
 /** Turns one Codex JSONL event into human steps. */
@@ -63,7 +78,7 @@ export function codexSteps(e: any): Step[] { // eslint-disable-line @typescript-
   if (e?.type !== "item.completed" || !it) return [];
   if (it.type === "web_search") return !it.query && it.results?.[0]?.domain ? [{at, kind: "open", text: `Reading ${it.results[0].domain}`}] : [];
   if (it.type === "mcp_tool_call") { const a = it.arguments ?? {}; if (it.tool === "read_page" && a.url) return [{at, kind: "open", text: `Reading ${host(String(a.url))}`}]; return []; }
-  if (it.type === "command_execution") return [{at, kind: "run", text: `Running: ${String(it.command ?? "").replace(/^\S*sh -lc\s+/, "").slice(0, 110)}`}];
+  if (it.type === "command_execution") { const t = commandLabel(String(it.command ?? "")); return [{at, kind: t.startsWith("Running") ? "run" : t.startsWith("Searching") ? "search" : "open", text: t}]; }
   if (it.type === "file_change") return [{at, kind: "write", text: `Writing ${(it.changes ?? []).map((c: {path?: string}) => String(c.path ?? "").split("/").pop()).filter(Boolean).slice(0, 3).join(", ") || "a file"}`}];
   if (it.type === "agent_message" && it.text && !String(it.text).trim().startsWith("{")) return [{at, kind: "say", text: String(it.text).slice(0, 160)}];
   return [];
@@ -76,7 +91,7 @@ export function claudeSteps(e: any, root: string): Step[] { // eslint-disable-li
     const f = String(p ?? ""), r = relative(root, f); if (r && !r.startsWith("..")) return r;
     const mark = "/" + basename(root) + "/", i = f.lastIndexOf(mark); return i >= 0 ? f.slice(i + mark.length) : basename(f); // e.g. /private/var vs /var
   };
-  const label = (p: unknown) => { const r = rel(p); return r.startsWith("inbox/") ? `your file ${r.slice(6).replace(/^[a-f0-9]{8}-/, "").replace(/\.txt$/, "")}` : r.replace(/^context\//, ""); };
+  const label = (p: unknown) => pathLabel(rel(p));
   const out: Step[] = [];
   for (const b of e.message.content) {
     const i = b?.input ?? {};

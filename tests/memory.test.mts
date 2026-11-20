@@ -15,7 +15,7 @@ const {sqlite} = await import("../lib/db/client.ts");
 const {createGoal} = await import("../lib/v2/brief.ts");
 const {exportContext} = await import("../lib/agent/workspace.ts");
 const {addEvent} = await import("../lib/chat/events.ts");
-const {claudeArgs, codexArgs, claudeSteps, claudeResult} = await import("../lib/agent/cli.ts");
+const {claudeArgs, codexArgs, claudeSteps, claudeResult, commandLabel} = await import("../lib/agent/cli.ts");
 const {sessionToResume, recordTurn, endSession, contextChanges, resumeNote, WARM_MS, MAX_TURNS, MAX_INPUT} = await import("../lib/agent/session.ts");
 after(() => { sqlite.close(); rmSync(dir, {recursive: true, force: true}); });
 
@@ -69,6 +69,7 @@ const mcp = {name: "firecrawl", command: "/usr/bin/node", args: ["/app/lib/agent
 test("Codex runs in the workspace sandbox, resumes by id, and gets Firecrawl only for web tasks", () => {
   const a = codexArgs(turn);
   assert.ok(a.includes('sandbox_mode="workspace-write"'));
+  assert.ok(a.includes("project_root_markers=[]"), "only the workspace's own AGENTS.md, never the app's");
   assert.ok(!a.includes("resume"));
   const r = codexArgs({...turn, resume: "abc"});
   assert.deepEqual([r[0], r[1], r.at(-2), r.at(-1)], ["exec", "resume", "abc", "-"]);
@@ -132,4 +133,14 @@ test("Claude Code events become steps and a structured answer", () => {
   assert.deepEqual(claudeResult({type: "result", is_error: false, structured_output: {a: 1}}), {ok: true, output: {a: 1}});
   assert.equal(claudeResult({type: "result", is_error: true, result: "boom"})?.ok, false);
   assert.equal(claudeResult({type: "assistant"}), null);
+});
+
+test("Codex commands read as what they were for", () => {
+  assert.equal(commandLabel("'cat context/README.md'"), "Reading README.md");
+  assert.equal(commandLabel("/bin/zsh -lc 'cat context/{goal,skills,sessions}.md'"), "Reading goal.md, skills.md, sessions.md");
+  assert.equal(commandLabel("'tail -n 16 context/conversation.md'"), "Reading conversation.md");
+  assert.equal(commandLabel("'pdftotext inbox/5ebfdf47-hello.pdf - || cat inbox/5ebfdf47-hello.pdf.txt'"), "Reading your file hello.pdf");
+  assert.equal(commandLabel("'rg -n -i \"barre chord\" context'"), "Searching your files for “barre chord”");
+  assert.equal(commandLabel("'rg --files context'"), "Looking through your files");
+  assert.equal(commandLabel("'python3 out/j1/make.py'"), "Running: python3 out/j1/make.py");
 });

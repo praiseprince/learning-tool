@@ -59,6 +59,14 @@ test("files are stored under unique, safe names and documents get a text copy", 
   assert.equal(saved[1].type, "image");
   if (pdf) { assert.equal(saved[2].text, saved[2].stored + ".txt"); assert.match(readFileSync(inbox(saved[2].text!), "utf8"), /Hello from a PDF/); }
   await assert.rejects(saveShared(goal, [new File(["x"], "a.exe")]), /isn't supported/);
+  if (process.platform === "darwin") {
+    const heic = join(process.env.MARGINALIA_WORKSPACES!, "photo.heic");
+    execFileSync("sips", ["-s", "format", "heic", new URL("./fixtures/sketch.png", import.meta.url).pathname, "--out", heic], {stdio: "ignore"});
+    const [p] = await saveShared(goal, [new File([readFileSync(heic)], "IMG_0042.HEIC")]);
+    assert.match(p.stored, /-IMG_0042\.jpg$/); assert.equal(p.name, "IMG_0042.jpg"); assert.equal(p.type, "image");
+    assert.deepEqual([...readFileSync(inbox(p.stored)).subarray(0, 2)], [0xff, 0xd8], "a real JPEG");
+    assert.ok(!existsSync(inbox(p.stored.replace(/\.jpg$/, ".HEIC"))), "the HEIC original is not kept twice");
+  }
 
   addEvent(goal, "user", {text: "Here are my notes", files: saved});
   addEvent(goal, "user", {text: "old style", files: ["legacy.png"]});
