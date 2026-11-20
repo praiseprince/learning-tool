@@ -25,6 +25,28 @@ export function events(goal: string, limit = 120): ChatEvent[] {
   return (sqlite.prepare("SELECT * FROM (SELECT * FROM chat_event WHERE goal=? ORDER BY seq DESC LIMIT ?) ORDER BY seq").all(goal, limit) as {seq: number; goal: string; kind: Kind; payload_json: string; status: string; created_at: string}[])
     .map(r => ({seq: r.seq, goal: r.goal, kind: r.kind, payload: JSON.parse(r.payload_json), status: r.status, created_at: r.created_at}));
 }
+/** How many events the thread must load so that the event `at` (and everything after it) is on screen. */
+export function countSince(goal: string, at: number): number {
+  ensureChat(); return (sqlite.prepare("SELECT COUNT(*) AS n FROM chat_event WHERE goal=? AND seq>=?").get(goal, at) as {n: number}).n;
+}
+export function countEvents(goal: string): number {
+  ensureChat(); return (sqlite.prepare("SELECT COUNT(*) AS n FROM chat_event WHERE goal=?").get(goal) as {n: number}).n;
+}
+export type MessageHit = {goal: string; goalName: string; hue: number | null; seq: number; who: "user" | "guide"; snippet: string; at: string};
+/** Messages (yours and the Guide's) in every goal that contain the words, newest first, with a short snippet around the match. */
+export function searchMessages(q: string, limit = 8): MessageHit[] {
+  ensureChat();
+  const words = q.toLowerCase().split(/\s+/).filter(w => w.length > 1).slice(0, 6); if (!words.length) return [];
+  const body = "lower(COALESCE(json_extract(e.payload_json,'$.text'),'') || ' ' || COALESCE(json_extract(e.payload_json,'$.markdown'),''))";
+  const rows = sqlite.prepare(`SELECT e.goal,e.seq,e.kind,e.created_at,j.name,j.hue,${body} AS b,COALESCE(json_extract(e.payload_json,'$.text'),json_extract(e.payload_json,'$.markdown'),'') AS raw
+    FROM chat_event e JOIN journey j ON j.id=e.goal WHERE e.kind IN ('user','guide') AND COALESCE(json_extract(e.payload_json,'$.tone'),'')!='error' AND ${words.map(() => `${body} LIKE ? ESCAPE '\\'`).join(" AND ")}
+    ORDER BY e.seq DESC LIMIT ?`).all(...words.map(w => `%${w.replace(/[\\%_]/g, c => "\\" + c)}%`), limit) as {goal: string; seq: number; kind: string; created_at: string; name: string; hue: number | null; raw: string}[];
+  return rows.map(r => {
+    const plain = String(r.raw).replace(/[#*_`>|[\]]/g, "").replace(/\s+/g, " ").trim(), i = Math.max(0, plain.toLowerCase().indexOf(words[0]));
+    const start = Math.max(0, i - 40), snippet = (start ? "…" : "") + plain.slice(start, start + 120) + (plain.length > start + 120 ? "…" : "");
+    return {goal: r.goal, goalName: r.name, hue: r.hue, seq: r.seq, who: r.kind === "user" ? "user" : "guide", snippet, at: r.created_at};
+  });
+}
 export function state(goal: string) {
   ensureChat();
   const r = sqlite.prepare("SELECT COALESCE(MAX(seq),0) AS seq,SUM(status='working') AS working FROM chat_event WHERE goal=?").get(goal) as {seq: number; working: number | null};

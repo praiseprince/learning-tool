@@ -758,3 +758,11 @@ body { line-height:1.6; letter-spacing:0; }
 .msg.user .files small { flex:none; color:var(--muted); font-size:var(--t-meta); }
 .msg.user:has(.shots):not(:has(p)) { background:none; border:0; padding:0; }
 .msg.user:has(p) .shots { justify-content:flex-start; }
+
+/* long threads: earlier messages on request, and landing on a message found by search */
+.earlier { display:flex; gap:var(--s2); align-items:baseline; justify-content:center; font-size:var(--t-ui); color:var(--muted); padding-bottom:var(--s2); } .earlier a { color:var(--ink); font-weight:600; }
+.thread > .anchor { display:block; height:0; margin-bottom:calc(-1 * var(--s4)); scroll-margin-top:var(--s5); }
+.thread > .anchor.found + .msg { animation:found 2.4s var(--ease-out) both; border-radius:12px; }
+@keyframes found { 0%,40% { box-shadow:0 0 0 2px var(--marker); } 100% { box-shadow:0 0 0 2px transparent; } }
+@media (prefers-reduced-motion:reduce) { .thread > .anchor.found + .msg { animation:none; box-shadow:0 0 0 2px var(--marker); } }
+.pal-who { display:block; font-style:normal; font-size:var(--t-meta); color:var(--muted); }

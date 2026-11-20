@@ -52,6 +52,17 @@ test("a fact the learner accepts from chat is remembered by every later turn", a
   assert.equal(read("about-me.md").match(/Moving to Valencia in March\./g)?.length, 1);
 });
 
+test("the conversation can be searched across goals, and a found message can be loaded", async () => {
+  const {searchMessages, countSince} = await import("../lib/chat/events.ts");
+  const hits = searchMessages("madrid flashcards");
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].who, "user"); assert.equal(hits[0].goalName, "Spanish");
+  assert.match(hits[0].snippet, /moving to Madrid/);
+  assert.ok(countSince(goal, hits[0].seq) > 70, "the thread must load enough to reach it");
+  assert.deepEqual(searchMessages("100%_"), [], "LIKE wildcards are matched literally");
+  assert.deepEqual(searchMessages("x"), [], "one letter is too short to search");
+});
+
 const turn = {root: "/w/es", job: "j1", schemaPath: "/w/es/jobs/j1/schema.json", schemaJson: '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object"}', resultPath: "/w/es/jobs/j1/result.json", web: false, images: [], model: "", rules: "RULES", resume: null as string | null, mcp: null as null | {name: string; command: string; args: string[]; env: Record<string, string>; tools: string[]}};
 const mcp = {name: "firecrawl", command: "/usr/bin/node", args: ["/app/lib/agent/firecrawl-mcp.ts"], env: {FIRECRAWL_URL: "http://127.0.0.1:3002"}, tools: ["read_page"]};
 

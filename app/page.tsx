@@ -10,6 +10,8 @@ import {ensureAgent} from "@/lib/agent/jobs";
 
 export const dynamic = "force-dynamic";
 
+const num = (v: unknown) => typeof v === "string" && /^\d{1,9}$/.test(v) ? Number(v) : undefined;
+
 export default async function Home({searchParams}: PageProps<"/">) {
   ensureAgent(); // closes jobs a restart cut short before anything reads "busy"
   const q = await searchParams, list = goals();
@@ -20,7 +22,7 @@ export default async function Home({searchParams}: PageProps<"/">) {
   return <AppShell active="Chat" hue={goal.hue} goal={goal.id} bare>
     <div className="chat-app">
       <section className="chat" aria-label="Chat">
-        <div className="chat-scroll"><Thread goal={goal.id} /></div>
+        <div className="chat-scroll"><Thread goal={goal.id} at={num(q.at)} older={num(q.older)} /></div>
         <Composer goal={goal.id} busy={state(goal.id).busy} />
       </section>
       <PanelToggle label={goal.name}><GoalPanel goal={goal.id} /></PanelToggle>

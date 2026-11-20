@@ -2,7 +2,7 @@
 import Link from "next/link";
 import {sqlite} from "@/lib/db/client";
 import {findPlan} from "@/lib/db/plans";
-import {events, marks, state} from "@/lib/chat/events";
+import {countEvents, countSince, events, marks, state} from "@/lib/chat/events";
 import {getJob} from "@/lib/agent/jobs";
 import {materials} from "@/lib/v2/materials";
 import {Markdown} from "@/components/v2/markdown";
@@ -48,8 +48,12 @@ const showable = (kind: string, p: any) => kind === "agent_material" ? !!p?.sugg
 const parse = (s: string) => { try { return JSON.parse(s); } catch { return null; } };
 
 /** The conversation: every message and card for one goal, oldest first. One broken message never takes the thread down with it. */
-export function Thread({goal}: {goal: string}) {
-  const evs = events(goal), st = state(goal), last = evs.at(-1)?.seq ?? 0, mats = materials(goal), byId = Object.fromEntries(mats.map(m => [m.id, m]));
+export function Thread({goal, at, older = 0}: {goal: string; at?: number; older?: number}) {
+  const PAGE = 120, total = countEvents(goal), limit = Math.min(5000, Math.max(PAGE * (1 + older), at ? countSince(goal, at) + 6 : 0));
+  const evs = events(goal, limit), st = state(goal), hidden = total - evs.length;
+  // after a search, or after "Show earlier" (which passes the message that was first on screen), land on that message
+  const mark = at;
+  const last = evs.at(-1)?.seq ?? 0, mats = materials(goal), byId = Object.fromEntries(mats.map(m => [m.id, m]));
   const one = (e: Ev) => {
     if (e.kind === "user") return <div key={e.seq} className="msg user">{e.payload.text ? <p>{String(e.payload.text)}</p> : null}<SharedFiles goal={goal} files={sharedFrom(e.payload)} /></div>;
     if (e.kind === "guide") return <div key={e.seq} className={"msg guide" + (e.payload.tone === "error" ? " error" : "")}><div className="md"><Markdown text={String(e.payload.markdown ?? "")} /></div>
@@ -77,9 +81,11 @@ export function Thread({goal}: {goal: string}) {
   };
   return <div className="thread" role="log" aria-live="polite" aria-label="Conversation with the Guide">
     {evs.length === 0 && <Hello goal={goal} />}
-    {evs.map(e => { try { return one(e); } catch { return <p key={e.seq} className="msg-note">This message could not be shown.</p>; } })}
+    {hidden > 0 && <p className="earlier"><Link href={`/?goal=${goal}&older=${Math.ceil(evs.length / PAGE)}&at=${evs[0].seq}#m${evs[0].seq}`} scroll={false}>Show earlier messages</Link> <span>{hidden.toLocaleString()} more</span></p>}
+    {evs.map(e => { let el: React.ReactNode; try { el = one(e); } catch { el = <p key={e.seq} className="msg-note">This message could not be shown.</p>; }
+      return e.seq === mark ? [<span key={"m" + e.seq} id={"m" + e.seq} className={"anchor" + (older ? "" : " found")} aria-hidden="true" />, el] : el; })}
     <div id="thread-end" />
-    <Live goal={goal} seq={st.seq} busy={st.busy} />
+    <Live goal={goal} seq={st.seq} busy={st.busy} at={mark} />
   </div>;
 }
 
