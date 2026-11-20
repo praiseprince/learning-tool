@@ -1,6 +1,6 @@
 # Marginalia
 
-A personal learning app for one learner, built around a conversation with a Guide that knows your whole learning history. Goals, sessions, notes, files and a knowledge map live in SQLite on your own computer (`data/app.db`). The Guide is a real agent (Codex or Claude Code), and the database is its memory.
+A personal learning app for one learner, built around a conversation with a Guide that knows your whole learning history. Goals, sessions, notes, files and a knowledge map live in SQLite on your own computer. The Guide is a real agent (Codex or Claude Code), and the database is its memory.
 
 ## What you can do
 
@@ -42,14 +42,51 @@ Nothing is compacted or lost either way, because the memory is the database. Mea
 
 **Firecrawl Local** ([firecrawl/apps/local](https://github.com/firecrawl/firecrawl/tree/main/apps/local)) lets the agents read whole web pages. It is one binary, with no API key, account or Docker. `npm install` builds it into `.tools/bin` when Rust is installed (`npm run setup:firecrawl` rebuilds). The app starts it on 127.0.0.1:3002 when needed with `FIRECRAWL_CLOUD=off`, so nothing goes to Firecrawl. `FIRECRAWL_URL=off` disables it.
 
-## Run
+## The Mac app
+
+**Marginalia.app** is the everyday way to run it. Open the .dmg, drag Marginalia to Applications, and open it. It starts its own server in the background and shows the app in a window.
+
+- **Closing the window keeps it running**, so your phone and iPad can still reach it. The Dock icon or the menu bar brings the window back. **Quit** stops everything, including the tunnel.
+- **Needs, already installed:** Claude Code (`claude`) or Codex (`codex`), signed in, for the Guide; and `cloudflared` (`brew install cloudflared`) for the Tunnel. The app carries its own Node.js and server.
+- **It does not open at login.**
+
+The **menu-bar icon** (an italic M) has these items:
+
+| Item | What it does |
+| --- | --- |
+| Open Marginalia | Shows the window. |
+| Tunnel | Turns a temporary HTTPS address on or off; it works from anywhere. The address changes each time. |
+| Copy Tunnel Address | Copies that address. |
+| Phone and iPad… | Opens Settings at the Wi-Fi and tunnel addresses, each with a QR code. |
+| Set PIN… | Sets or changes the sign-in PIN. The first launch asks for one. |
+| Unlock Sign-in | Clears the lockout after too many wrong PINs. |
+| Show Data Folder | Opens the folder with your data in Finder. |
+| Quit Marginalia | Stops the server and the tunnel. |
+
+**Where your data lives:** `~/Library/Application Support/Marginalia/`:
+- `app.db` is the database: goals, chats, notes, sessions, the PIN hash.
+- `workspace/` holds shared files and what the Guide made.
+- `backup-*.db` are backups made before a reset or a goal deletion.
+
+The server log is `~/Library/Logs/Marginalia/server.log`. Deleting the app leaves your data; delete that folder to remove it too.
+
+**Signing in.** Every device, the Mac's own window included, signs in once with the PIN and stays signed in for 30 days.
+- The PIN is stored only as a hash.
+- After five wrong tries, sign-in locks for one minute, then twice as long after each further wrong try, up to a day. **Unlock Sign-in** clears the lock.
+- **Settings → Devices** lists signed-in devices, signs them out, and changes the PIN.
+
+**Who can open it.** The server listens on your network, so a phone or iPad on the same Wi-Fi can open the address shown in Settings after signing in. That address is plain HTTP, so on a shared network someone could capture the PIN as it is sent. Use the Tunnel (HTTPS) there instead.
+
+**Building the app** (from a checkout, with Rust installed): `npm ci`, then `npm run app`. It builds the standalone server, fetches the official Node.js matching your own (checking its SHA-256), and writes `Marginalia.app` and a `.dmg` to `desktop/src-tauri/target/release/bundle/`. The app is not notarised; if macOS refuses to open it, right-click it and choose Open.
+
+## Run from a checkout
 
 ```
 npm ci
 npm run local:prod
 ```
 
-That builds and starts the production server; `npm run local` runs the development server instead.
+That builds and starts the production server, with data in `data/`; `npm run local` runs the development server instead. Set the PIN with `node scripts/pin.mjs` (`--unlock` clears a lockout).
 
 The Guide uses the installed Codex CLI by default (`codex login status` to check). Switch to Claude Code (`claude`, signed in) in Settings. Optional overrides:
 
@@ -60,14 +97,7 @@ The Guide uses the installed Codex CLI by default (`codex login status` to check
 | `CLAUDE_MODEL` | Overrides the Claude Code model. |
 | `DATABASE_URL` | Uses another database file. |
 | `MARGINALIA_WORKSPACES` | Puts the workspaces somewhere other than `data/workspace`. |
-
-**Signing in.** Every device signs in once with a PIN and stays signed in for 30 days.
-- Set the PIN on the Mac with `node scripts/pin.mjs`. It is stored only as a hash.
-- After five wrong tries, sign-in locks for one minute, then twice as long after each further wrong try, up to a day. `node scripts/pin.mjs --unlock` clears the lock.
-- **Settings → Devices** lists signed-in devices, signs them out, and changes the PIN.
-- `MARGINALIA_AUTH=off` turns sign-in off, for tests only.
-
-**Who can open it.** The server listens on all network interfaces and prints a Wi-Fi address, so a phone or iPad on the same network can open it after signing in. The Wi-Fi address is plain HTTP, so on a shared network someone could capture the PIN as it is sent. Use the tunnel (HTTPS) there instead.
+| `MARGINALIA_AUTH=off` | Turns sign-in off, for tests only. |
 
 ## Your data
 
@@ -76,7 +106,7 @@ The Guide uses the installed Codex CLI by default (`codex login status` to check
 - **What the Guide has noticed about you:** editable.
 - **Reset:** always backs up the database first and keeps your files.
 
-To back up by hand: `node scripts/sqlite-snapshot.mjs backup data/app.db marginalia-backup.db` (pick a new filename). To try a restore without touching the original:
+To back up by hand, quit Marginalia and copy the data folder. From a checkout, `node scripts/sqlite-snapshot.mjs backup <database> marginalia-backup.db` makes a checked copy while it runs. To try a restore without touching the original:
 1. `node scripts/sqlite-snapshot.mjs restore marginalia-backup.db restored.db`
 2. `DATABASE_URL=./restored.db npm run local` on a free port.
 
@@ -101,6 +131,7 @@ Project rules for coding agents: [`AGENTS.md`](AGENTS.md). Design rules: [`DESIG
 | `npm run lint` | Lints the code. |
 | `npm run build` | Builds the app; it also typechecks the tests. |
 | `npm run shots` | Builds, seeds throwaway showcase and worst-case data, and screenshots every screen at 390 and 1280px in light and dark into `design/current`. It fails on overflow, page errors or a non-200 page. |
+| `npm run app` | Builds the Mac app and its .dmg (needs Rust). |
 | `npm run seed:showcase` | Loads demo goals (Marx, Plato, a 5K, piano) into an empty database. |
 | `npx tsx scripts/seed-live-demo.mts` | Fills an empty database with five goals and runs the live Guide on each. |
 | `npm run evals` | Runs session extraction on 12 synthetic entries with the live Codex CLI (uses your allowance). |

@@ -25,6 +25,11 @@ Read `README.md` (what the app does and how it runs) and `DESIGN.md` (structure,
 - A UI task is not done until you have run `npm run shots`, looked at the screenshots (390 and 1280px, light and dark, including worst-case data) and fixed what is wrong. Test failure states too.
 - For UI work, the Impeccable design skill and its anti-pattern checks apply. Where a design skill conflicts with `DESIGN.md`, `DESIGN.md` wins.
 
+## Mac app
+- `desktop/` is the Tauri app: `src-tauri/src/main.rs` (window, menu bar, server lifecycle) and `bundle.mjs` (standalone server plus Node.js). Build with `npm run app`.
+- The app's server must keep working without the checkout: anything read at runtime through `process.cwd()` has to be copied in `bundle.mjs`, and data paths come from the environment (`DATABASE_URL`, `MARGINALIA_WORKSPACES`, `FIRECRAWL_HOME`).
+- Quit and a killed app must both stop every process the server started (process group plus `lib/watchdog.ts`). Test both after changing anything that spawns.
+
 ## Before committing
 `npx tsc --noEmit`, `npm run lint`, `npm test` and `npm run build` must pass (the build also typechecks the tests).
 
