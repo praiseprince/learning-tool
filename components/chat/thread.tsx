@@ -18,7 +18,8 @@ import {goalDetail} from "@/lib/v2/goals";
 import {preferences} from "@/lib/db/personal";
 import {ago} from "@/lib/v2/when";
 import {todaySlot} from "@/lib/agent/week";
-import {MinutesCard, PlanCard, QuizCard, Retry, SaveAnswer, StartFresh, SuggestionCard, Waiting, WeekCard} from "./cards";
+import {MinutesCard, PlanCard, QuizCard, RemoveExchange, Retry, SaveAnswer, StartFresh, SuggestionCard, Waiting, WeekCard} from "./cards";
+import {cloneElement, isValidElement, type ReactElement} from "react";
 import {aiProvider} from "@/lib/ai/provider";
 import {sessionToResume} from "@/lib/agent/session";
 import {doneDays, weekById} from "@/lib/agent/week";
@@ -87,11 +88,19 @@ export function Thread({goal, at, older = 0}: {goal: string; at?: number; older?
     if (e.kind === "note") return <div key={e.seq} className="msg guide"><div className="card"><p className="card-t">{String(e.payload.title ?? "A new note")}</p><p className="actions">{e.payload.doc && <Link className="link" href={`/notebook/d/${e.payload.doc}`}>Open the note</Link>}{(e.payload.files ?? []).map((f: {title: string; href: string}, i: number) => <a key={i} className="link file" href={f.href} title={f.title}>{f.title}</a>)}</p></div></div>;
     return null;
   };
+  // every event belongs to the exchange opened by the learner's latest message before it, so it can be removed with it
+  const exOf = new Map<number, number>(); evs.reduce((cur, e) => { const c = e.kind === "user" ? e.seq : cur; exOf.set(e.seq, c); return c; }, 0);
   return <div className="thread" role="log" aria-live="polite" aria-label="Conversation with the Guide">
     {evs.length === 0 && <Hello goal={goal} />}
     {hidden > 0 && <p className="earlier"><Link href={`/?goal=${goal}&older=${Math.ceil(evs.length / PAGE)}&at=${evs[0].seq}#m${evs[0].seq}`} scroll={false}>Show earlier messages</Link> <span>{hidden.toLocaleString()} more</span></p>}
-    {evs.map(e => { let el: React.ReactNode; try { el = one(e); } catch { el = <p key={e.seq} className="msg-note">This message could not be shown.</p>; }
-      return e.seq === mark ? [<span key={"m" + e.seq} id={"m" + e.seq} className={"anchor" + (older ? "" : " found")} aria-hidden="true" />, el] : el; })}
+    {evs.map(e => {
+      let el: React.ReactNode; try { el = one(e); } catch { el = <p key={e.seq} className="msg-note">This message could not be shown.</p>; }
+      const ex = exOf.get(e.seq) ?? 0;
+      if (ex && isValidElement(el) && typeof el.type === "string") el = cloneElement(el as ReactElement<Record<string, unknown>>, {"data-ex": ex});
+      const tools = e.kind === "user" && e.status !== "queued" && e.status !== "withdrawn" ? <RemoveExchange key={"rm" + e.seq} goal={goal} seq={e.seq} /> : null;
+      const out = tools ? [el, tools] : [el];
+      return e.seq === mark ? [<span key={"m" + e.seq} id={"m" + e.seq} className={"anchor" + (older ? "" : " found")} aria-hidden="true" />, ...out] : out;
+    })}
     <div id="thread-end" />
     <Live goal={goal} seq={st.seq} busy={st.busy} at={mark} />
   </div>;

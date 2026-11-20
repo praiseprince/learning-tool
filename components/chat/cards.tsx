@@ -1,7 +1,7 @@
 "use client";
-import {useState, useTransition} from "react";
+import {useEffect, useRef, useState, useTransition} from "react";
 import {useRouter} from "next/navigation";
-import {acceptInline, acceptWeekInline, dismissInline, dismissWeekInline, finish, finishQuiz, mark, pickMinutes, redoWeek, retryInline, saveAnswer, withdrawInline, freshInline} from "@/app/chat-actions";
+import {acceptInline, acceptWeekInline, dismissInline, dismissWeekInline, finish, finishQuiz, mark, pickMinutes, redoWeek, retryInline, saveAnswer, withdrawInline, freshInline, removeInline} from "@/app/chat-actions";
 
 export function MinutesCard({goal, note, active}: {goal: string; note: string; active: boolean}) {
   const [other, setOther] = useState(""), [pending, go] = useTransition();
@@ -114,4 +114,21 @@ export function Waiting({goal, seq}: {goal: string; seq: number}) {
 export function StartFresh({goal}: {goal: string}) {
   const [pending, go] = useTransition();
   return <><span title="The Guide keeps a recent session open so follow-ups are quick and cheap. Starting fresh changes nothing it knows about you.">Continuing this conversation</span> · <button type="button" className="link-btn" disabled={pending} onClick={() => go(() => freshInline(goal))}>Start fresh</button></>;
+}
+
+/** Under each of your messages: removes it and the replies to it. They disappear at once; for a few seconds "Undo" brings them back, then they are deleted. */
+export function RemoveExchange({goal, seq}: {goal: string; seq: number}) {
+  const [phase, setPhase] = useState<"idle" | "pending" | "error">("idle"), [err, setErr] = useState(""), timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const show = (on: boolean) => document.querySelectorAll<HTMLElement>(`[data-ex="${seq}"]`).forEach(el => { el.style.display = on ? "" : "none"; });
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const remove = () => {
+    show(false); setPhase("pending");
+    timer.current = setTimeout(async () => {
+      const r = await removeInline(goal, seq).catch(() => ({error: "That didn't go through. Check the connection and try again."}));
+      if (r?.error) { show(true); setErr(r.error); setPhase("error"); }
+    }, 6000);
+  };
+  const undo = () => { clearTimeout(timer.current); show(true); setPhase("idle"); };
+  if (phase === "pending") return <p className="msg-tools removed" role="status">Removed from the chat and the Guide’s memory · <button type="button" className="link-btn" onClick={undo}>Undo</button></p>;
+  return <p className="msg-tools">{phase === "error" && <span role="alert">{err} </span>}<button type="button" className="link-btn" onClick={remove} title="Remove this message and the Guide's replies to it. Anything you already saved from them stays.">Remove</button></p>;
 }

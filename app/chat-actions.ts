@@ -38,6 +38,12 @@ export async function freshInline(goal: string) {
   requireV2(); known(goal);
   const {endSession} = await import("@/lib/agent/session"); endSession(goal); addEvent(goal, "fresh", {}); done();
 }
+/** Removes one of your messages and the Guide's replies to it, from the thread and from the Guide's memory. */
+export async function removeInline(goal: string, seq: number): Promise<{error?: string}> {
+  requireV2(); known(goal);
+  const {removeExchange} = await import("@/lib/chat/remove"); const r = removeExchange(goal, seq);
+  done(); return r.ok ? {} : {error: r.error};
+}
 /** Takes back a message that is still waiting for the Guide. */
 export async function withdrawInline(goal: string, seq: number) { requireV2(); withdraw(goal, seq); done(); }
 export async function pickMinutes(goal: string, minutes: number, note: string) {

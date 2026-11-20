@@ -779,3 +779,13 @@ body { line-height:1.6; letter-spacing:0; }
 /* an answer shown while it is being written */
 .run.drafting { display:grid; gap:var(--s2); } .run.drafting .md { font-size:1rem; line-height:1.7; } .run.drafting .md :first-child { margin-top:0; }
 .fresh-line { display:flex; align-items:center; gap:var(--s3); font-size:var(--t-meta); color:var(--muted); text-align:center; } .fresh-line::before,.fresh-line::after { content:""; flex:1; border-top:1px solid var(--rule); }
+
+/* remove a message and its replies */
+.msg-tools { align-self:flex-end; margin-top:calc(-1 * var(--s3)); font-size:var(--t-meta); color:var(--muted); } .msg-tools .link-btn { font-size:var(--t-meta); }
+.msg-tools.removed { align-self:center; margin-top:0; }
+@media (hover:hover) and (pointer:fine) { .msg-tools:not(.removed) { opacity:0; transition:opacity .15s var(--ease); } .msg.user:hover + .msg-tools,.msg-tools:hover,.msg-tools:focus-within { opacity:1; } }
+
+/* remove a message and its replies */
+.msg-tools { align-self:flex-end; margin-top:calc(-1 * var(--s3)); font-size:var(--t-meta); color:var(--muted); } .msg-tools .link-btn { font-size:var(--t-meta); }
+.msg-tools.removed { align-self:center; margin-top:0; }
+@media (hover:hover) and (pointer:fine) { .msg-tools:not(.removed) { opacity:0; transition:opacity .15s var(--ease); } .msg.user:hover + .msg-tools,.msg-tools:hover,.msg-tools:focus-within { opacity:1; } }
