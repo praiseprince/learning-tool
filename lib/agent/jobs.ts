@@ -5,12 +5,14 @@ import {randomUUID} from "node:crypto";
 import {z} from "zod";
 import {sqlite} from "../db/client.ts";
 import {goalDetail, skillRows} from "../v2/goals.ts";
-import {exportContext, inside, newOutDir, workspaceDir} from "./workspace.ts";
+import {RULES, exportContext, inside, newOutDir, workspaceDir} from "./workspace.ts";
+import {aiModel, aiProvider, PROVIDER_NAME} from "../ai/provider.ts";
+import {claudeArgs, claudeResult, claudeSteps, codexArgs, codexSteps, type Step} from "./cli.ts";
 import {KINDS, LABEL, NEEDS_WEB, SCHEMAS, TIMEOUT_MS, promptFor, stubResult, type JobInput, type JobKind} from "./tasks.ts";
 import {ingest} from "./ingest.ts";
 import {addEvent} from "../chat/events.ts";
 
-export type Step = {at: string; kind: "search" | "open" | "run" | "write" | "say" | "error"; text: string};
+export type {Step};
 export type Job = {id: string; goal: string; kind: JobKind; status: "running" | "done" | "failed" | "cancelled"; input: JobInput; steps: Step[]; result: unknown; error: string | null; created_at: string; finished_at: string | null};
 type G = typeof globalThis & {__agentRunning?: Map<string, ChildProcess>; __agentBoot?: boolean};
 const g = globalThis as G;
@@ -41,19 +43,6 @@ function save(id: string, patch: {status?: Job["status"]; steps?: Step[]; result
   if (sets.length) sqlite.prepare(`UPDATE agent_job SET ${sets.join(",")} WHERE id=?`).run(...vals, id);
 }
 
-/** Turns one Codex JSONL event into a human step, or null for noise. */
-export function stepFrom(e: any): Step | null { // eslint-disable-line @typescript-eslint/no-explicit-any
-  const at = new Date().toISOString(), it = e?.item;
-  if (e?.type === "error" && e.message) return {at, kind: "error", text: String(e.message).slice(0, 200)};
-  if (e?.type === "item.started" && it?.type === "web_search") return it.query ? {at, kind: "search", text: `Searching the web: ${String(it.query).slice(0, 120)}`} : null;
-  if (e?.type !== "item.completed" || !it) return null;
-  if (it.type === "web_search") { if (!it.query && it.results?.[0]?.domain) return {at, kind: "open", text: `Reading ${it.results[0].domain}`}; return null; }
-  if (it.type === "command_execution") return {at, kind: "run", text: `Running: ${String(it.command ?? "").replace(/^\S*sh -lc\s+/, "").slice(0, 110)}`};
-  if (it.type === "file_change") return {at, kind: "write", text: `Writing ${(it.changes ?? []).map((c: {path?: string}) => String(c.path ?? "").split("/").pop()).filter(Boolean).slice(0, 3).join(", ") || "a file"}`};
-  if (it.type === "agent_message" && it.text && !String(it.text).trim().startsWith("{")) return {at, kind: "say", text: String(it.text).slice(0, 160)};
-  return null;
-}
-
 export function startJob(goal: string, kind: JobKind, input: JobInput = {}): string {
   ensureAgent();
   if (!(KINDS as readonly string[]).includes(kind)) throw Error("Unknown task.");
@@ -76,7 +65,7 @@ export function startJob(goal: string, kind: JobKind, input: JobInput = {}): str
     } catch (e) { const msg = e instanceof z.ZodError ? "The Guide's answer did not match the expected shape." : String((e as Error).message).slice(0, 200); save(id, {status: "failed", error: msg, steps, finished: true}); addEvent(goal, "guide", {markdown: `${msg} Your data is unchanged. You can try again.`, tone: "error"}); }
   };
 
-  if (process.env.AI_PROVIDER === "stub") {
+  if (aiProvider() === "stub") {
     const rows = skillRows(goal);
     setTimeout(() => { steps.push({at: new Date().toISOString(), kind: "say", text: "Reading your goal, skills and sessions…"}); save(id, {steps}); }, 300);
     setTimeout(() => {
@@ -87,28 +76,36 @@ export function startJob(goal: string, kind: JobKind, input: JobInput = {}): str
     return id;
   }
 
-  const schema = z.toJSONSchema(SCHEMAS[kind]);
-  writeFileSync(join(root, "jobs", id, "schema.json"), JSON.stringify(schema));
+  const provider = aiProvider();
+  if (provider === "stub") return id; // unreachable: handled above
+  const schemaJson = JSON.stringify(z.toJSONSchema(SCHEMAS[kind])), schemaPath = join(root, "jobs", id, "schema.json"), resultPath = join(root, "jobs", id, "result.json");
+  writeFileSync(schemaPath, schemaJson);
   const images = (input.files ?? []).filter(f => /\.(png|jpe?g|webp|gif)$/i.test(f)).map(f => inside(goal, "inbox", f));
-  const args = ["exec", "--json", "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules", "--ephemeral", "--sandbox", "workspace-write", "-C", root,
-    ...(process.env.AI_MODEL ? ["--model", process.env.AI_MODEL] : []), ...(NEEDS_WEB[kind] ? ["-c", 'web_search="live"'] : []),
-    "--output-schema", join(root, "jobs", id, "schema.json"), "-o", join(root, "jobs", id, "result.json"), ...images.flatMap(p => ["-i", p]), "-"];
-  const child = spawn("codex", args, {cwd: root, stdio: ["pipe", "pipe", "pipe"]});
+  const name = PROVIDER_NAME[provider];
+
+  /** One stateless turn: everything the agent knows comes from context/, rebuilt from the database above. */
+  const turn = {root, job: id, schemaPath, schemaJson, resultPath, web: NEEDS_WEB[kind], images, model: aiModel(provider), rules: RULES};
+  const child = spawn(provider, provider === "codex" ? codexArgs(turn) : claudeArgs(turn), {cwd: root, stdio: ["pipe", "pipe", "pipe"]});
   running.set(id, child);
-  const timer = setTimeout(() => { child.kill("SIGTERM"); steps.push({at: new Date().toISOString(), kind: "error", text: "This took too long and was stopped."}); }, TIMEOUT_MS[kind]);
-  let buf = "", last = 0;
+  let answer: ReturnType<typeof claudeResult> = null, buf = "", last = 0, timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; child.kill("SIGTERM"); steps.push({at: new Date().toISOString(), kind: "error", text: "This took too long and was stopped."}); }, TIMEOUT_MS[kind]);
   child.stdout.on("data", chunk => {
     buf += chunk.toString(); const lines = buf.split("\n"); buf = lines.pop() ?? "";
-    for (const l of lines) { try { const st = stepFrom(JSON.parse(l)); if (st) steps.push(st); } catch { /* not an event */ } }
+    for (const l of lines) {
+      let e: unknown; try { e = JSON.parse(l); } catch { continue; }
+      if (provider === "claude") answer = claudeResult(e) ?? answer;
+      steps.push(...(provider === "codex" ? codexSteps(e) : claudeSteps(e, root)));
+    }
     if (Date.now() - last > 400) { last = Date.now(); save(id, {steps}); }
   });
-  child.stderr.on("data", () => { /* codex prints progress here; the JSON stream is the source of truth */ });
-  child.on("error", () => { clearTimeout(timer); void finish(false, "Codex could not be started. Check that it is installed and signed in."); });
+  child.stderr.on("data", () => { /* progress noise; the JSON stream is the source of truth */ });
+  child.on("error", () => { clearTimeout(timer); void finish(false, `${name} could not be started. Check that it is installed and signed in.`); });
   child.on("close", code => {
-    clearTimeout(timer); const cur = getJob(id);
-    if (cur?.status === "cancelled") { running.delete(id); return; }
-    if (code === 0 && existsSync(join(root, "jobs", id, "result.json"))) void finish(true);
-    else void finish(false, code === null ? "Stopped before finishing." : "The Guide could not finish this one. Your data is unchanged.");
+    clearTimeout(timer);
+    if (getJob(id)?.status === "cancelled") { running.delete(id); return; }
+    if (provider === "claude" && answer?.ok) writeFileSync(resultPath, JSON.stringify(answer.output));
+    if (code === 0 && existsSync(resultPath)) void finish(true);
+    else void finish(false, code === null || timedOut ? "Stopped before finishing." : "The Guide could not finish this one. Your data is unchanged.");
   });
   child.stdin.on("error", () => { /* closed early */ });
   child.stdin.end(promptFor(kind, id, input));

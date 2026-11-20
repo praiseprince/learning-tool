@@ -39,9 +39,10 @@ export function skillRows(goal: string): SkillRow[] {
     FROM skill k WHERE k.journey_id=? AND k.archived=0 ORDER BY k.level DESC,k.name`).all(goal) as SkillRow[];
 }
 export type Move = {id: string; skill: string; node: string; level: number; delta: number; quote: string; at: string; entry: string};
-export function history(goal: string) {
-  const sessions = sqlite.prepare("SELECT id,raw_text,minutes,occurred_on,kind FROM log_entry WHERE journey_id=? ORDER BY occurred_on DESC,created_at DESC LIMIT 60").all(goal) as {id: string; raw_text: string; minutes: number | null; occurred_on: string; kind: string}[];
-  const moves = sqlite.prepare("SELECT v.id,s.name AS skill,'legacy-'||s.id AS node,v.level_after AS level,v.delta,v.evidence_quote AS quote,v.at,v.entry_id AS entry FROM skill_event v JOIN skill s ON s.id=v.skill_id WHERE s.journey_id=? AND v.delta!=0 ORDER BY v.at DESC LIMIT 200").all(goal) as Move[];
+/** Sessions and skill moves, newest first. The agent export asks for all of them. */
+export function history(goal: string, limit = 60) {
+  const sessions = sqlite.prepare("SELECT id,raw_text,minutes,occurred_on,kind FROM log_entry WHERE journey_id=? ORDER BY occurred_on DESC,created_at DESC LIMIT ?").all(goal, limit) as {id: string; raw_text: string; minutes: number | null; occurred_on: string; kind: string}[];
+  const moves = sqlite.prepare("SELECT v.id,s.name AS skill,'legacy-'||s.id AS node,v.level_after AS level,v.delta,v.evidence_quote AS quote,v.at,v.entry_id AS entry FROM skill_event v JOIN skill s ON s.id=v.skill_id WHERE s.journey_id=? AND v.delta!=0 ORDER BY v.at DESC LIMIT ?").all(goal, Math.max(200, limit)) as Move[];
   return {sessions, moves};
 }
 export function goalNotes(goal: string) {
