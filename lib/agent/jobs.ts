@@ -7,7 +7,9 @@ import {sqlite} from "../db/client.ts";
 import {goalDetail, skillRows} from "../v2/goals.ts";
 import {RULES, exportContext, inside, newOutDir, workspaceDir} from "./workspace.ts";
 import {aiModel, aiProvider, PROVIDER_NAME} from "../ai/provider.ts";
-import {claudeArgs, claudeResult, claudeSteps, codexArgs, codexSteps, type Step} from "./cli.ts";
+import {claudeArgs, claudeResult, claudeSteps, codexArgs, codexSteps, sessionFrom, usageFrom, type Step} from "./cli.ts";
+import {contextChanges, endSession, recordTurn, resumeNote, sessionToResume} from "./session.ts";
+import {firecrawlUp, firecrawlUrl} from "./firecrawl.ts";
 import {KINDS, LABEL, NEEDS_WEB, SCHEMAS, TIMEOUT_MS, promptFor, stubResult, type JobInput, type JobKind} from "./tasks.ts";
 import {ingest} from "./ingest.ts";
 import {addEvent} from "../chat/events.ts";
@@ -24,6 +26,7 @@ export function ensureAgent() {
   if (ready) return;
   sqlite.exec(`CREATE TABLE IF NOT EXISTS agent_job(id TEXT PRIMARY KEY,goal TEXT NOT NULL,kind TEXT NOT NULL,status TEXT NOT NULL,input_json TEXT NOT NULL,steps_json TEXT NOT NULL DEFAULT '[]',result_json TEXT,error TEXT,created_at TEXT NOT NULL,finished_at TEXT);
     CREATE INDEX IF NOT EXISTS agent_job_goal ON agent_job(goal,created_at);`);
+  try { sqlite.exec("ALTER TABLE agent_job ADD COLUMN usage_json TEXT"); } catch { /* already there */ }
   // jobs left "running" by a real server restart can never finish: close them honestly, once per process
   if (!g.__agentBoot) { g.__agentBoot = true; sqlite.prepare("UPDATE agent_job SET status='failed',error='The app restarted while this was running.',finished_at=? WHERE status='running'").run(new Date().toISOString()); }
   ready = true;
@@ -81,36 +84,54 @@ export function startJob(goal: string, kind: JobKind, input: JobInput = {}): str
   const schemaJson = JSON.stringify(z.toJSONSchema(SCHEMAS[kind])), schemaPath = join(root, "jobs", id, "schema.json"), resultPath = join(root, "jobs", id, "result.json");
   writeFileSync(schemaPath, schemaJson);
   const images = (input.files ?? []).filter(f => /\.(png|jpe?g|webp|gif)$/i.test(f)).map(f => inside(goal, "inbox", f));
-  const name = PROVIDER_NAME[provider];
+  const name = PROVIDER_NAME[provider], changed = contextChanges(root);
 
-  /** One stateless turn: everything the agent knows comes from context/, rebuilt from the database above. */
-  const turn = {root, job: id, schemaPath, schemaJson, resultPath, web: NEEDS_WEB[kind], images, model: aiModel(provider), rules: RULES};
-  const child = spawn(provider, provider === "codex" ? codexArgs(turn) : claudeArgs(turn), {cwd: root, stdio: ["pipe", "pipe", "pipe"]});
-  running.set(id, child);
-  let answer: ReturnType<typeof claudeResult> = null, buf = "", last = 0, timedOut = false;
-  const timer = setTimeout(() => { timedOut = true; child.kill("SIGTERM"); steps.push({at: new Date().toISOString(), kind: "error", text: "This took too long and was stopped."}); }, TIMEOUT_MS[kind]);
-  child.stdout.on("data", chunk => {
-    buf += chunk.toString(); const lines = buf.split("\n"); buf = lines.pop() ?? "";
-    for (const l of lines) {
-      let e: unknown; try { e = JSON.parse(l); } catch { continue; }
-      if (provider === "claude") answer = claudeResult(e) ?? answer;
-      steps.push(...(provider === "codex" ? codexSteps(e) : claudeSteps(e, root)));
-    }
-    if (Date.now() - last > 400) { last = Date.now(); save(id, {steps}); }
-  });
-  child.stderr.on("data", () => { /* progress noise; the JSON stream is the source of truth */ });
-  child.on("error", () => { clearTimeout(timer); void finish(false, `${name} could not be started. Check that it is installed and signed in.`); });
-  child.on("close", code => {
-    clearTimeout(timer);
-    if (getJob(id)?.status === "cancelled") { running.delete(id); return; }
-    if (provider === "claude" && answer?.ok) writeFileSync(resultPath, JSON.stringify(answer.output));
-    if (code === 0 && existsSync(resultPath)) void finish(true);
-    else void finish(false, code === null || timedOut ? "Stopped before finishing." : "The Guide could not finish this one. Your data is unchanged.");
-  });
-  child.stdin.on("error", () => { /* closed early */ });
-  child.stdin.end(promptFor(kind, id, input));
+  /** One turn. It resumes the goal's recent session when that is still warm, otherwise starts fresh; a resume that never
+   * reaches its session is retried once fresh. Either way context/ (the database) is the memory. */
+  const run = async (resume: string | null) => {
+    const fc = NEEDS_WEB[kind] && await firecrawlUp();
+    const mcp = fc ? {name: "firecrawl", command: process.execPath, args: ["--no-warnings", join(process.cwd(), "lib", "agent", "firecrawl-mcp.ts")],
+      env: {FIRECRAWL_URL: firecrawlUrl(), MARGINALIA_READ_LOG: join(root, "jobs", id, "reads.jsonl"), ...(process.env.FIRECRAWL_API_KEY ? {FIRECRAWL_API_KEY: process.env.FIRECRAWL_API_KEY} : {})}, tools: ["read_page"]} : null;
+    const turn = {root, job: id, schemaPath, schemaJson, resultPath, web: NEEDS_WEB[kind], images, model: aiModel(provider), rules: RULES, resume, mcp};
+    const prompt = [resume ? resumeNote(changed) : "", fc ? FIRECRAWL_NOTE : "", promptFor(kind, id, resume ? {...input, history: undefined} : input)].filter(Boolean).join("\n\n");
+    const child = spawn(provider, provider === "codex" ? codexArgs(turn) : claudeArgs(turn), {cwd: root, stdio: ["pipe", "pipe", "pipe"]});
+    running.set(id, child);
+    let answer: ReturnType<typeof claudeResult> = null, session: string | null = null, usage: ReturnType<typeof usageFrom> = null, buf = "", last = 0, timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; child.kill("SIGTERM"); steps.push({at: new Date().toISOString(), kind: "error", text: "This took too long and was stopped."}); }, TIMEOUT_MS[kind]);
+    child.stdout.on("data", chunk => {
+      buf += chunk.toString(); const lines = buf.split("\n"); buf = lines.pop() ?? "";
+      for (const l of lines) {
+        let e: unknown; try { e = JSON.parse(l); } catch { continue; }
+        session ??= sessionFrom(provider, e);
+        const u = usageFrom(provider, e); if (u) usage = usage ? {input: usage.input + u.input, cached: usage.cached + u.cached, output: usage.output + u.output} : u;
+        if (provider === "claude") answer = claudeResult(e) ?? answer;
+        steps.push(...(provider === "codex" ? codexSteps(e) : claudeSteps(e, root)));
+      }
+      if (Date.now() - last > 400) { last = Date.now(); save(id, {steps}); }
+    });
+    child.stderr.on("data", () => { /* progress noise; the JSON stream is the source of truth */ });
+    child.on("error", () => { clearTimeout(timer); void finish(false, `${name} could not be started. Check that it is installed and signed in.`); });
+    child.on("close", code => {
+      clearTimeout(timer);
+      if (getJob(id)?.status === "cancelled") { running.delete(id); return; }
+      if (code !== 0 && resume && !session && !timedOut) { endSession(goal); steps.push({at: new Date().toISOString(), kind: "say", text: "Starting a fresh conversation…"}); void run(null); return; }
+      if (session) recordTurn(goal, provider, session, usage?.input ?? 0);
+      if (usage) sqlite.prepare("UPDATE agent_job SET usage_json=? WHERE id=?").run(JSON.stringify({...usage, provider, resumed: !!resume}), id);
+      if (provider === "claude" && answer?.ok) writeFileSync(resultPath, JSON.stringify(answer.output));
+      if (code === 0 && existsSync(resultPath)) void finish(true);
+      else void finish(false, code === null || timedOut ? "Stopped before finishing." : "The Guide could not finish this one. Your data is unchanged.");
+    });
+    child.stdin.on("error", () => { /* closed early */ });
+    child.stdin.end(prompt);
+  };
+  const warm = sessionToResume(goal, provider);
+  if (warm.id) steps.push({at: new Date().toISOString(), kind: "say", text: "Continuing our conversation…"});
+  void run(warm.id);
   return id;
 }
+
+/** Told to the agent when local Firecrawl is attached. */
+const FIRECRAWL_NOTE = `You have a read_page tool (Firecrawl Local, on this computer): it returns a web page in full as clean Markdown, with JavaScript rendered. Find pages with your web search, then open them with read_page rather than a built-in fetch: you get the whole page, not a summary, and every page you read is logged so the app can check which sources you really opened.`;
 
 export function cancelJob(id: string) {
   const c = running.get(id); if (c) c.kill("SIGTERM"); running.delete(id);

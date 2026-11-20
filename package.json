@@ -18,7 +18,9 @@
     "local": "node scripts/local.mjs",
     "seed:showcase": "node scripts/seed-showcase.mjs",
     "local:prod": "next build && node scripts/local.mjs --prod",
-    "test": "node --import tsx --test \"tests/*.test.mts\""
+    "test": "node --import tsx --test \"tests/*.test.mts\"",
+    "postinstall": "node scripts/firecrawl-install.mjs",
+    "setup:firecrawl": "node scripts/firecrawl-install.mjs --force"
   },
   "dependencies": {
     "@types/three": "^0.187.0",

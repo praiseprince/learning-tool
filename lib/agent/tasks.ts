@@ -47,7 +47,7 @@ export type JobInput = {text?: string; skill?: string; files?: string[]; history
 export function promptFor(kind: JobKind, job: string, input: JobInput): string {
   const out = `out/${job}/`;
   const text = (input.text ?? "").slice(0, 6000);
-  const base = `You remember nothing from earlier turns: context/ is your memory, rebuilt from the app's database just now. Read context/README.md first, then what this task needs (conversation.md for what was said recently). Write any files only inside ${out}.`;
+  const base = `You remember nothing from earlier turns: context/ is your memory, rebuilt from the app's database just now. Read context/README.md first, then only what this task needs (the end of conversation.md for what was said recently); search with rg instead of reading everything. Write any files only inside ${out}.`;
   if (kind === "research") return `${base}
 TASK: Find real learning materials for this learner's goal and current phase: books, courses, videos, articles, apps, exercise sets.
 Use web search and OPEN each candidate's page. Only include a candidate if you opened a page that confirms it exists (publisher, library, official course page or the creator's own page). Put the URL you opened in "url" and what you read that confirmed it in "evidence"; set "opened" true only if you really opened it.

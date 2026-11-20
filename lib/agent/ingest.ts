@@ -1,4 +1,8 @@
 import {randomUUID} from "node:crypto";
+import {readFileSync} from "node:fs";
+import {join} from "node:path";
+import {firecrawlUp, scrape} from "./firecrawl.ts";
+import {workspaceDir} from "./workspace.ts";
 import dns from "node:dns/promises";
 import net from "node:net";
 import {sqlite} from "../db/client.ts";
@@ -20,6 +24,17 @@ const words = (s: string) => (s.toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? [])
 
 /** The app checks a link itself instead of trusting the model: it must resolve, be public, and mention the title. */
 export async function checkUrl(url: string, title: string): Promise<Check> {
+  const direct = await fetchCheck(url, title);
+  if (direct.ok || direct.note === "No valid link." || direct.note === "Not a web link." || direct.note === "Not a public address." || !(await firecrawlUp())) return direct;
+  // Many real pages refuse plain fetches (403), hide titles behind JavaScript (YouTube) or are slow: let Firecrawl render them.
+  const p = await scrape(url, 30_000), at = new Date().toISOString();
+  if (!p.ok) return direct;
+  const ok = matches(title, p.title + " " + p.markdown.slice(0, 60_000));
+  return {ok, status: p.status, title: p.title, at, note: ok ? "The page loads (rendered by Firecrawl) and mentions the title." : "The page loads (rendered by Firecrawl) but does not clearly mention the title."};
+}
+const matches = (title: string, page: string) => { const need = words(title).slice(0, 4), hay = page.toLowerCase(); return need.length === 0 || need.filter(w => hay.includes(w)).length >= Math.min(2, need.length); };
+
+async function fetchCheck(url: string, title: string): Promise<Check> {
   const at = new Date().toISOString(), fail = (note: string, status = 0): Check => ({ok: false, status, title: "", at, note});
   let u: URL; try { u = new URL(url); } catch { return fail("No valid link."); }
   if (!/^https?:$/.test(u.protocol)) return fail("Not a web link.");
@@ -29,11 +44,22 @@ export async function checkUrl(url: string, title: string): Promise<Check> {
     const r = await fetch(u, {signal: ctl.signal, redirect: "follow", headers: {"user-agent": "Mozilla/5.0 (compatible; MarginaliaLinkCheck/1.0)", accept: "text/html,*/*"}});
     if (!r.ok) return fail(`The page answered ${r.status}.`, r.status);
     const text = (await r.text()).slice(0, 200_000), t = (text.match(/<title[^>]*>([^<]{1,300})/i)?.[1] ?? "").replace(/\s+/g, " ").trim();
-    const need = words(title).slice(0, 4), hay = (t + " " + text.slice(0, 60_000)).toLowerCase(), hits = need.filter(w => hay.includes(w)).length;
-    const ok = need.length === 0 ? true : hits >= Math.min(2, need.length);
+    const ok = matches(title, t + " " + text.slice(0, 60_000));
     return {ok, status: r.status, title: t, at, note: ok ? "The page loads and mentions the title." : "The page loads but does not clearly mention the title."};
   } catch { return fail("The page did not respond in time."); }
   finally { clearTimeout(timer); }
+}
+
+type Read = {url: string; final: string; ok: boolean; status: number; title: string; at: string};
+/** Pages the agent opened through Firecrawl Local during this job (logged by the MCP server, not reported by the model). */
+function readLog(goal: string, job: string): Read[] {
+  try { return readFileSync(join(workspaceDir(goal), "jobs", job, "reads.jsonl"), "utf8").split("\n").filter(Boolean).map(l => JSON.parse(l) as Read); } catch { return []; }
+}
+const same = (a: string, b: string) => a.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") === b.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
+/** A verified check when the agent really read this page and its title matches; otherwise null, so the app checks it itself. */
+function fromReads(reads: Read[], url: string, title: string): Check | null {
+  const r = reads.find(x => x.ok && (same(x.url, url) || same(x.final, url)) && matches(title, x.title));
+  return r ? {ok: true, status: r.status, title: r.title.replace(/\s+/g, " ").trim(), at: r.at, note: "The Guide read this page (Firecrawl Local) and its title matches."} : null;
 }
 
 const addProposal = (goal: string, kind: string, payload: unknown, source: string) => {
@@ -46,10 +72,10 @@ export async function ingest(job: {id: string; goal: string; kind: JobKind; inpu
   if (kind === "research") {
     const r = result as Results["research"], have = materials(goal), seen = new Set(have.flatMap(m => [m.title.toLowerCase(), m.url]).filter(Boolean));
     const pending = new Set((sqlite.prepare("SELECT diff_json FROM proposal WHERE journey_id=? AND kind='agent_material' AND status='pending'").all(goal) as {diff_json: string}[]).map(x => { try { return JSON.parse(x.diff_json).suggestion.title.toLowerCase(); } catch { return ""; } }));
-    const made: string[] = [];
+    const made: string[] = [], reads = readLog(goal, id);
     for (const sug of r.suggestions) {
       if (seen.has(sug.title.toLowerCase()) || (sug.url && seen.has(sug.url)) || pending.has(sug.title.toLowerCase())) continue;
-      const check = sug.url && process.env.AI_PROVIDER !== "stub" ? await checkUrl(sug.url, sug.title) : {ok: false, status: 0, title: "", at: new Date().toISOString(), note: sug.url ? "Not checked (stub mode)." : "No link given."};
+      const check = sug.url && process.env.AI_PROVIDER !== "stub" ? fromReads(reads, sug.url, sug.title) ?? await checkUrl(sug.url, sug.title) : {ok: false, status: 0, title: "", at: new Date().toISOString(), note: sug.url ? "Not checked (stub mode)." : "No link given."};
       made.push(addProposal(goal, "agent_material", {suggestion: sug, check, summary: r.summary}, id));
     }
     addEvent(goal, "guide", {markdown: made.length ? r.summary : `${r.summary}\n\nEverything I found is already in your materials or waiting for you.`});

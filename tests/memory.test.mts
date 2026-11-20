@@ -2,7 +2,7 @@
 // These check that the conversation, knowledge map and profile reach it, and that both CLIs are invoked safely.
 import {test, after} from "node:test";
 import assert from "node:assert/strict";
-import {mkdtempSync, readFileSync, existsSync, rmSync} from "node:fs";
+import {mkdtempSync, mkdirSync, readFileSync, existsSync, rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 
@@ -16,6 +16,7 @@ const {createGoal} = await import("../lib/v2/brief.ts");
 const {exportContext} = await import("../lib/agent/workspace.ts");
 const {addEvent} = await import("../lib/chat/events.ts");
 const {claudeArgs, codexArgs, claudeSteps, claudeResult} = await import("../lib/agent/cli.ts");
+const {sessionToResume, recordTurn, endSession, contextChanges, resumeNote, WARM_MS, MAX_TURNS, MAX_INPUT} = await import("../lib/agent/session.ts");
 after(() => { sqlite.close(); rmSync(dir, {recursive: true, force: true}); });
 
 const goal = "es";
@@ -40,18 +41,24 @@ test("profile facts and the knowledge map are exported", () => {
   assert.match(read("README.md"), /These files ARE your memory/);
 });
 
-const turn = {root: "/w/es", job: "j1", schemaPath: "/w/es/jobs/j1/schema.json", schemaJson: '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object"}', resultPath: "/w/es/jobs/j1/result.json", web: false, images: [], model: "", rules: "RULES"};
+const turn = {root: "/w/es", job: "j1", schemaPath: "/w/es/jobs/j1/schema.json", schemaJson: '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object"}', resultPath: "/w/es/jobs/j1/result.json", web: false, images: [], model: "", rules: "RULES", resume: null as string | null, mcp: null as null | {name: string; command: string; args: string[]; env: Record<string, string>; tools: string[]}};
+const mcp = {name: "firecrawl", command: "/usr/bin/node", args: ["/app/lib/agent/firecrawl-mcp.ts"], env: {FIRECRAWL_URL: "http://127.0.0.1:3002"}, tools: ["read_page"]};
 
-test("Codex runs are ephemeral and sandboxed to the workspace", () => {
+test("Codex runs in the workspace sandbox, resumes by id, and gets Firecrawl only for web tasks", () => {
   const a = codexArgs(turn);
-  assert.ok(a.includes("--ephemeral"));
-  assert.equal(a[a.indexOf("--sandbox") + 1], "workspace-write");
+  assert.ok(a.includes('sandbox_mode="workspace-write"'));
   assert.ok(!a.includes("resume"));
+  const r = codexArgs({...turn, resume: "abc"});
+  assert.deepEqual([r[0], r[1], r.at(-2), r.at(-1)], ["exec", "resume", "abc", "-"]);
+  assert.ok(!codexArgs({...turn, mcp}).join(" ").includes("mcp_servers"), "no MCP without web");
+  const w = codexArgs({...turn, web: true, mcp}).join(" ");
+  assert.match(w, /mcp_servers\.firecrawl\.args=\["\/app\/lib\/agent\/firecrawl-mcp\.ts"\]/);
+  assert.match(w, /mcp_servers\.firecrawl\.env=\{FIRECRAWL_URL="http:\/\/127\.0\.0\.1:3002"\}/);
 });
 
-test("Claude Code runs are not saved, ignore user settings and may only write to out/<job>/", () => {
+test("Claude Code ignores user settings, may only write to out/<job>/, and resumes by id", () => {
   const a = claudeArgs(turn);
-  for (const f of ["--no-session-persistence", "--strict-mcp-config"]) assert.ok(a.includes(f), f);
+  assert.ok(a.includes("--strict-mcp-config"));
   assert.equal(a[a.indexOf("--permission-mode") + 1], "dontAsk");
   assert.equal(a[a.indexOf("--setting-sources") + 1], "");
   assert.equal(a[a.indexOf("--json-schema") + 1], '{"type":"object"}', "Claude Code rejects the $schema header");
@@ -59,6 +66,40 @@ test("Claude Code runs are not saved, ignore user settings and may only write to
   assert.ok(!a.some(x => /^(Write|Edit)$/.test(x)), "no unscoped write permission");
   assert.ok(!a.join(",").includes("WebSearch"), "no web without a task that needs it");
   assert.ok(claudeArgs({...turn, web: true}).includes("WebFetch"));
+  assert.deepEqual(claudeArgs({...turn, resume: "s1"}).slice(-2), ["--resume", "s1"]);
+  const w = claudeArgs({...turn, web: true, mcp});
+  assert.ok(w.includes("mcp__firecrawl__read_page"));
+  assert.equal(JSON.parse(w[w.indexOf("--mcp-config") + 1]).mcpServers.firecrawl.command, "/usr/bin/node");
+});
+
+test("a session is resumed only while warm, short and small", () => {
+  const t0 = Date.now();
+  assert.equal(sessionToResume(goal, "claude").id, null);
+  recordTurn(goal, "claude", "s1", 20_000);
+  assert.equal(sessionToResume(goal, "claude").id, "s1");
+  recordTurn(goal, "codex", "c1", 20_000);
+  assert.equal(sessionToResume(goal, "codex").id, null, "Codex starts fresh every turn");
+  assert.equal(sessionToResume(goal, "claude", t0 + WARM_MS + 60_000).why, "paused");
+  recordTurn(goal, "claude", "s1", MAX_INPUT);
+  assert.equal(sessionToResume(goal, "claude").why, "large");
+  recordTurn(goal, "claude", "s2", 10_000);
+  assert.equal(sessionToResume(goal, "claude").id, "s2", "a fresh session replaces the old one");
+  for (let i = 0; i < MAX_TURNS; i++) recordTurn(goal, "claude", "s2", 10_000);
+  assert.equal(sessionToResume(goal, "claude").why, "long");
+  endSession(goal);
+  assert.equal(sessionToResume(goal, "claude").id, null);
+});
+
+test("a resumed turn is told which context files changed", () => {
+  const root = join(process.env.MARGINALIA_WORKSPACES!, goal);
+  mkdirSync(join(root, "jobs"), {recursive: true});
+  exportContext(goal); contextChanges(root);
+  assert.deepEqual(contextChanges(root), []);
+  addEvent(goal, "user", {text: "One more thing."});
+  exportContext(goal);
+  const changed = contextChanges(root);
+  assert.ok(changed.includes("conversation.md") && !changed.includes("goal.md"), changed.join());
+  assert.match(resumeNote(["conversation.md"]), /Changed since your last turn: conversation\.md/);
 });
 
 test("Claude Code events become steps and a structured answer", () => {

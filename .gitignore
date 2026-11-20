@@ -43,3 +43,6 @@ next-env.d.ts
 
 # agent workspaces (per-goal sandbox, contains your learning data)
 /data/workspace/
+
+# Firecrawl Local, built by npm install (scripts/firecrawl-install.mjs)
+/.tools/

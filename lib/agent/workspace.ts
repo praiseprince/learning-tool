@@ -103,7 +103,7 @@ export function exportContext(goal: string) {
   writeFileSync(join(ctx, "README.md"), `# Context for "${d.goal.name}"
 
 You have no memory between turns. These files ARE your memory: the app rebuilds them from its database before every turn, so they are always current and complete.
-Read what the task needs, not everything. Use grep (or Grep) to find things in the larger files and archives.
+Read only what the task needs. Never print whole folders or every file at once: every token you read is paid for again on each later step. Start with the end of conversation.md and the one or two files the task points to, then use grep (rg) to find specific things in larger files, notes/, library/ and the archives.
 
 - goal.md          the goal, why, constraints and roadmap (with the current phase)
 - about-me.md      what the learner has told the app about themselves (all goals)
