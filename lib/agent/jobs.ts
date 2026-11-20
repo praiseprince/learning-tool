@@ -36,6 +36,7 @@ export function ensureAgent() {
       sqlite.prepare("UPDATE chat_event SET status='done' WHERE kind='job' AND status='working' AND json_extract(payload_json,'$.job')=?").run(j.id);
       addEvent(j.goal, "guide", {markdown: "The app restarted while I was working on this, so it never finished. Your data is unchanged.", tone: "error", retry: {job: j.id}});
     }
+    for (const {goal} of sqlite.prepare("SELECT DISTINCT goal FROM chat_event WHERE kind='user' AND status='queued'").all() as {goal: string}[]) setTimeout(() => next(goal), 0);
   }
   ready = true;
 }
@@ -65,8 +66,10 @@ export function startJob(goal: string, kind: JobKind, input: JobInput = {}): str
   const root = workspaceDir(goal);
   try { exportContext(goal); newOutDir(goal, id); mkdirSync(join(root, "jobs", id), {recursive: true}); }
   catch (e) { save(id, {status: "failed", error: String((e as Error).message), finished: true}); return id; }
-  const finish = async (ok: boolean, why?: string) => {
+  const finish = async (ok: boolean, why?: string) => { try { await end(ok, why); } finally { next(goal); } };
+  const end = async (ok: boolean, why?: string) => {
     running.delete(id);
+    if (getJob(id)?.status === "cancelled") return; // stopped by the learner: nothing to report
     sqlite.prepare("UPDATE chat_event SET status='done' WHERE kind='job' AND status='working' AND json_extract(payload_json,'$.job')=?").run(id);
     if (!ok) { save(id, {status: "failed", error: why ?? "The Guide could not finish.", steps, finished: true}); addEvent(goal, "guide", {markdown: `${why ?? "I could not finish that."} Your data is unchanged.`, tone: "error", retry: {job: id}}); return; }
     try {
@@ -141,8 +144,12 @@ export function startJob(goal: string, kind: JobKind, input: JobInput = {}): str
 /** Told to the agent when local Firecrawl is attached. */
 const FIRECRAWL_NOTE = `You have a read_page tool (Firecrawl Local, on this computer): it returns a web page in full as clean Markdown, with JavaScript rendered. Find pages with your web search, then open them with read_page rather than a built-in fetch: you get the whole page, not a summary, and every page you read is logged so the app can check which sources you really opened.`;
 
+/** Whatever the learner typed while the Guide was busy goes now. Loaded lazily: the router itself starts jobs. */
+function next(goal: string) { void import("../chat/route.ts").then(m => m.drainQueue(goal)).catch(() => { /* nothing waiting is lost: it stays queued */ }); }
+
 export function cancelJob(id: string) {
   const c = running.get(id); if (c) c.kill("SIGTERM"); running.delete(id);
   sqlite.prepare("UPDATE agent_job SET status='cancelled',finished_at=? WHERE id=? AND status='running'").run(new Date().toISOString(), id);
   sqlite.prepare("UPDATE chat_event SET status='done' WHERE kind='job' AND status='working' AND json_extract(payload_json,'$.job')=?").run(id);
+  const j = getJob(id); if (j) next(j.goal);
 }

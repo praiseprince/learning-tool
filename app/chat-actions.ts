@@ -7,60 +7,34 @@ import {sqlite} from "@/lib/db/client";
 import {goalDetail} from "@/lib/v2/goals";
 import {updateMaterial} from "@/lib/v2/materials";
 import {accept, dismiss, pending} from "@/lib/agent/accept";
-import {runningJob, startJob} from "@/lib/agent/jobs";
-import {addEvent, events, updateEvent} from "@/lib/chat/events";
-import {acceptWeek, todaySlot, weekById} from "@/lib/agent/week";
+import {runningJob} from "@/lib/agent/jobs";
+import {addEvent, updateEvent} from "@/lib/chat/events";
+import {acceptWeek, weekById} from "@/lib/agent/week";
 import {storeDocument} from "@/lib/v2/notebook";
-import {classify, logEntry, runPlan, saveSession, withFiles} from "@/lib/chat/run";
+import {logEntry, saveSession} from "@/lib/chat/run";
+import {agent, plan, post, withdraw, QUICK_TEXT, type Quick} from "@/lib/chat/route";
 import {saveShared, type Shared} from "@/lib/chat/files";
 
 const text = (d: FormData, k: string, n = 6000) => String(d.get(k) ?? "").trim().slice(0, n);
 const done = () => revalidatePath("/", "layout");
 const known = (goal: string) => { if (!goalDetail(goal)) throw Error("Goal not found."); };
 
-function history(goal: string) {
-  return events(goal, 24).filter(e => (e.kind === "user" || e.kind === "guide") && e.payload.text !== undefined || e.kind === "guide").slice(-8)
-    .map(e => ({role: e.kind === "user" ? "user" as const : "guide" as const, text: String(e.payload.text ?? e.payload.markdown ?? "").slice(0, 1500)}));
-}
-/** Starts an agent run and shows its progress in the thread. If one is already running, says so instead of queueing a second. */
-function agent(goal: string, kind: "ask" | "research" | "review" | "practice" | "week" | "quiz", input: Parameters<typeof startJob>[2]) {
-  if (runningJob(goal)) { addEvent(goal, "guide", {markdown: "I'm still working on your last request. Give me a moment, then ask again."}); return; }
-  const id = startJob(goal, kind, input); addEvent(goal, "job", {job: id, kind}, "working");
-}
-function plan(goal: string, minutes: number, note: string) {
-  const seq = addEvent(goal, "working", {label: `Planning ${minutes} minutes`}, "working");
-  void runPlan(goal, minutes, note, seq);
-}
-
-/** One message box for everything: it works out whether you want a plan, are logging practice, sharing work, or asking something. */
-export async function send(goal: string, data: FormData) {
+/** One message box for everything: it works out whether you want a plan, are logging practice, sharing work, or asking something.
+ * While the Guide is busy, a message that needs it waits in the thread and goes as soon as it is free. */
+export async function send(goal: string, data: FormData): Promise<{error?: string; queued?: boolean}> {
   requireV2(); known(goal);
   const msg = text(data, "text", 4000), files = (data.getAll("files") as File[]).filter(f => f && typeof f === "object" && f.size > 0);
   if (!msg && !files.length) return {error: "Write something first."};
-  if (files.length) {
-    if (runningJob(goal)) return {error: "The Guide is still working on your last request. Send these when it has finished."};
-    let shared: Shared[]; try { shared = await saveShared(goal, files); } catch (e) { return {error: (e as Error).message}; }
-    const kind = withFiles(msg), attachments = shared.map(f => ({name: f.name, path: `inbox/${f.stored}`, text: f.text ? `inbox/${f.text}` : undefined, type: f.type}));
-    addEvent(goal, "user", {text: msg, files: shared});
-    agent(goal, kind, {text: msg, files: shared.map(f => f.stored), attachments, ...(kind === "ask" ? {history: history(goal)} : {})}); done(); return {};
-  }
-  addEvent(goal, "user", {text: msg});
-  const intent = classify(msg);
-  if (intent.kind === "plan") { if (intent.minutes) plan(goal, intent.minutes, msg); else addEvent(goal, "minutes", {note: msg}); }
-  else if (intent.kind === "log") { const entry = logEntry(goal, msg, (msg.match(/\b(\d{1,3})\s*(?:min|minutes)\b/i) ? Number(msg.match(/\b(\d{1,3})\s*(?:min|minutes)\b/i)![1]) : null)); addEvent(goal, "log", {entry, minutes: null}); }
-  else if (intent.kind === "week" || intent.kind === "quiz" || intent.kind === "practice") agent(goal, intent.kind, {text: msg});
-  else agent(goal, "ask", {text: msg, history: history(goal)});
-  done(); return {};
+  let shared: Shared[] = [];
+  if (files.length) { try { shared = await saveShared(goal, files); } catch (e) { return {error: (e as Error).message}; } }
+  const r = post(goal, {text: msg, files: shared}); done(); return r;
 }
-export async function quick(goal: string, kind: "plan" | "research" | "practice" | "week" | "quiz") {
+export async function quick(goal: string, kind: Quick) {
   requireV2(); known(goal);
-  if (kind === "plan") { addEvent(goal, "user", {text: "What should I do today?"}); const t = todaySlot(goal); if (t && t.minutes > 0) plan(goal, t.minutes, `Today's slot in my week plan: ${t.focus}.`); else addEvent(goal, "minutes", {note: ""}); }
-  else if (kind === "week") { addEvent(goal, "user", {text: "Plan my week."}); agent(goal, "week", {text: ""}); }
-  else if (kind === "quiz") { addEvent(goal, "user", {text: "Quiz me on what I've learned."}); agent(goal, "quiz", {text: ""}); }
-  else if (kind === "research") { addEvent(goal, "user", {text: "Find me materials to learn from."}); agent(goal, "research", {text: ""}); }
-  else { addEvent(goal, "user", {text: "Make me some practice material."}); agent(goal, "practice", {text: ""}); }
-  done();
+  post(goal, {text: QUICK_TEXT[kind], quick: kind}); done();
 }
+/** Takes back a message that is still waiting for the Guide. */
+export async function withdrawInline(goal: string, seq: number) { requireV2(); withdraw(goal, seq); done(); }
 export async function pickMinutes(goal: string, minutes: number, note: string) {
   requireV2(); known(goal);
   if (!Number.isInteger(minutes) || minutes < 5 || minutes > 240) return;
@@ -126,7 +100,7 @@ export async function redoWeek(goal: string, id: string, note: string) {
   requireV2(); known(goal);
   if (!weekById(goal, id)) return;
   sqlite.prepare("UPDATE proposal SET status='dismissed',resolved_at=? WHERE id=? AND journey_id=? AND status='pending'").run(new Date().toISOString(), id, goal);
-  const n = note.trim().slice(0, 600); addEvent(goal, "user", {text: n ? `Plan the week again: ${n}` : "Plan the week again, differently."}); agent(goal, "week", {text: n || "Make it different from the last draft."}); done();
+  const n = note.trim().slice(0, 600); post(goal, {text: n ? `Plan the week again: ${n}` : "Plan the week again, differently.", task: {kind: "week", text: n || "Make it different from the last draft."}}); done();
 }
 
 /** A finished quiz becomes an ordinary session, so what was recalled and missed reaches the skills through the usual review. */
@@ -162,6 +136,6 @@ export async function fromNote(docId: string, kind: "quiz") {
   const d = sqlite.prepare("SELECT title,journey_id FROM document WHERE id=? AND status='active'").get(docId) as {title: string; journey_id: string | null} | undefined;
   if (!d?.journey_id || !goalDetail(d.journey_id)) return;
   const goal = d.journey_id, t = d.title.slice(0, 160);
-  addEvent(goal, "user", {text: `Quiz me on my note “${t}”.`}); agent(goal, kind, {text: `Quiz only on the note titled "${t}" in context/notes/.`});
+  post(goal, {text: `Quiz me on my note “${t}”.`, task: {kind, text: `Quiz only on the note titled "${t}" in context/notes/.`}});
   done(); redirect(`/?goal=${goal}#thread-end`);
 }

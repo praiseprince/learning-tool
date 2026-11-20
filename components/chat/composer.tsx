@@ -39,7 +39,12 @@ export function Composer({goal, busy}: {goal: string; busy: boolean}) {
   const submit = () => {
     if (pending || (!text.trim() && !files.length)) return;
     const fd = new FormData(); fd.set("text", text); files.forEach(f => fd.append("files", f));
-    go(async () => { const r = await send(goal, fd); if (r?.error) { setErr(r.error); return; } setText(""); setFiles([]); setErr(""); ta.current?.focus(); });
+    go(async () => {
+      let r: Awaited<ReturnType<typeof send>>;
+      try { r = await send(goal, fd); } catch { setErr(files.length ? "Your files didn't upload. Check the connection and send again; nothing was lost." : "That didn't send. Check the connection and try again; your message is still here."); return; }
+      if (r?.error) { setErr(r.error); return; }
+      setText(""); setFiles([]); setErr(""); ta.current?.focus();
+    });
   };
   return <form className={"composer" + (over ? " over" : "")} onSubmit={e => { e.preventDefault(); submit(); }}
     onDragOver={e => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={e => { e.preventDefault(); setOver(false); add(Array.from(e.dataTransfer.files)); }}>
@@ -53,7 +58,7 @@ export function Composer({goal, busy}: {goal: string; busy: boolean}) {
     </div>}
     {files.length > 0 && <ul className="attached" aria-label="Files to send">{files.map((f, i) => <Pending key={f.name + f.size + i} file={f} remove={() => setFiles(fs => fs.filter((_, j) => j !== i))} />)}</ul>}
     <div className="box">
-      <textarea ref={ta} value={text} rows={1} placeholder={busy ? "The Guide is working…" : files.length ? "Say what you want to know, or send for feedback" : "Message your Guide"} aria-label="Message the Guide"
+      <textarea ref={ta} value={text} rows={1} placeholder={busy ? "Write ahead; it waits its turn" : files.length ? "Say what you want to know, or send for feedback" : "Message your Guide"} aria-label="Message the Guide"
         onChange={e => { setText(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 180) + "px"; }}
         onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }}
         onPaste={e => { const f = Array.from(e.clipboardData.files); if (f.length) { e.preventDefault(); add(f); } }} />

@@ -771,3 +771,7 @@ body { line-height:1.6; letter-spacing:0; }
 .file-rows .t { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink); } .file-rows .s { overflow-wrap:anywhere; }
 .file-rows .actions { flex:none; display:flex; gap:var(--s2); align-items:center; }
 @media (max-width:560px) { .file-rows .row { flex-wrap:wrap; } .file-rows .actions { width:100%; padding-left:calc(36px + var(--s3)); } }
+
+/* messages typed while the Guide is busy */
+.msg.user.waiting { border-style:dashed; } .msg.user.withdrawn { opacity:.6; } .msg.user.withdrawn p { text-decoration:line-through; text-decoration-color:var(--muted); }
+.msg-state { margin-top:6px; font-size:var(--t-meta); color:var(--muted); } .msg-state .link-btn { font-size:var(--t-meta); }

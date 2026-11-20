@@ -18,7 +18,7 @@ import {goalDetail} from "@/lib/v2/goals";
 import {preferences} from "@/lib/db/personal";
 import {ago} from "@/lib/v2/when";
 import {todaySlot} from "@/lib/agent/week";
-import {MinutesCard, PlanCard, QuizCard, Retry, SaveAnswer, SuggestionCard, WeekCard} from "./cards";
+import {MinutesCard, PlanCard, QuizCard, Retry, SaveAnswer, SuggestionCard, Waiting, WeekCard} from "./cards";
 import {doneDays, weekById} from "@/lib/agent/week";
 import {nextDays} from "@/lib/agent/tasks";
 
@@ -55,7 +55,8 @@ export function Thread({goal, at, older = 0}: {goal: string; at?: number; older?
   const mark = at;
   const last = evs.at(-1)?.seq ?? 0, mats = materials(goal), byId = Object.fromEntries(mats.map(m => [m.id, m]));
   const one = (e: Ev) => {
-    if (e.kind === "user") return <div key={e.seq} className="msg user">{e.payload.text ? <p>{String(e.payload.text)}</p> : null}<SharedFiles goal={goal} files={sharedFrom(e.payload)} /></div>;
+    if (e.kind === "user") return <div key={e.seq} className={"msg user" + (e.status === "queued" ? " waiting" : e.status === "withdrawn" ? " withdrawn" : "")}>{e.payload.text ? <p>{String(e.payload.text)}</p> : null}<SharedFiles goal={goal} files={sharedFrom(e.payload)} />
+      {e.status === "queued" && <Waiting goal={goal} seq={e.seq} />}{e.status === "withdrawn" && <p className="msg-state">Not sent</p>}</div>;
     if (e.kind === "guide") return <div key={e.seq} className={"msg guide" + (e.payload.tone === "error" ? " error" : "")}><div className="md"><Markdown text={String(e.payload.markdown ?? "")} /></div>
       {e.payload.tone !== "error" && String(e.payload.markdown ?? "").length > 280 && <SaveAnswer goal={goal} seq={e.seq} saved={e.payload.saved} />}
       {e.payload.tone === "error" && e.payload.retry && !e.payload.retried && !st.busy && <Retry goal={goal} seq={e.seq} />}

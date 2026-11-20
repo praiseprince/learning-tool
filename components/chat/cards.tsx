@@ -1,7 +1,7 @@
 "use client";
 import {useState, useTransition} from "react";
 import {useRouter} from "next/navigation";
-import {acceptInline, acceptWeekInline, dismissInline, dismissWeekInline, finish, finishQuiz, mark, pickMinutes, redoWeek, retryInline, saveAnswer} from "@/app/chat-actions";
+import {acceptInline, acceptWeekInline, dismissInline, dismissWeekInline, finish, finishQuiz, mark, pickMinutes, redoWeek, retryInline, saveAnswer, withdrawInline} from "@/app/chat-actions";
 
 export function MinutesCard({goal, note, active}: {goal: string; note: string; active: boolean}) {
   const [other, setOther] = useState(""), [pending, go] = useTransition();
@@ -102,4 +102,10 @@ export function Retry({goal, seq}: {goal: string; seq: number}) {
   const [pending, go] = useTransition(), [gone, setGone] = useState(false);
   if (gone) return null;
   return <p className="msg-act"><button type="button" className="btn btn--sm" disabled={pending} onClick={() => go(async () => { await retryInline(goal, seq); setGone(true); })}>{pending ? "Starting…" : "Try again"}</button></p>;
+}
+
+/** Under a message typed while the Guide was busy: it goes as soon as the Guide is free, unless taken back. */
+export function Waiting({goal, seq}: {goal: string; seq: number}) {
+  const [pending, go] = useTransition();
+  return <p className="msg-state">Sends when the Guide is free · <button type="button" className="link-btn" disabled={pending} onClick={() => go(() => withdrawInline(goal, seq))}>Don’t send</button></p>;
 }
