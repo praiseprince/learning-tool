@@ -11,7 +11,8 @@ const toml = (v: unknown): string => Array.isArray(v) ? `[${v.map(toml).join(","
 /** Codex: `codex exec` (or `codex exec resume <id>`), run in the workspace folder with the workspace-write sandbox. */
 export function codexArgs(t: Turn) {
   const m = t.mcp && t.web ? t.mcp : null, k = m ? `mcp_servers.${m.name}` : "";
-  return ["exec", ...(t.resume ? ["resume"] : []), "--json", "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules", "-c", 'sandbox_mode="workspace-write"',
+  // Codex never continues a session here, so it keeps no transcript: removed messages leave nothing behind in ~/.codex
+  return ["exec", ...(t.resume ? ["resume"] : []), "--json", ...(t.resume ? [] : ["--ephemeral"]), "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules", "-c", 'sandbox_mode="workspace-write"',
     // the workspace is its own project: without this Codex walks up to the app's git root and loads the developer AGENTS.md
     "-c", "project_root_markers=[]",
     ...(t.model ? ["--model", t.model] : []), ...(t.web ? ["-c", 'web_search="live"'] : []),

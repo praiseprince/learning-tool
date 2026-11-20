@@ -8,7 +8,7 @@ mkdirSync(dirname(databasePath), { recursive: true });
 const sqlite = new Database(databasePath, {timeout: 5000});
 // Two fresh connections can race when SQLite first switches the file into WAL mode.
 for(let attempt=0;;attempt++){
-  try{sqlite.pragma("journal_mode = WAL");break;}
+  try{sqlite.pragma("journal_mode = WAL");sqlite.pragma("secure_delete = ON");break;} // deleted text is overwritten, not left in free pages
   catch(error){
     if(!(error instanceof Database.SqliteError)||error.code!=="SQLITE_BUSY"||attempt>=20)throw error;
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,50);

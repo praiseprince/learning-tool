@@ -132,7 +132,7 @@ export function startJob(goal: string, kind: JobKind, input: JobInput = {}): str
       if (getJob(id)?.status === "cancelled") { running.delete(id); return; }
       if (code !== 0 && resume && !session && !timedOut) { endSession(goal); steps.push({at: new Date().toISOString(), kind: "say", text: "Starting a fresh conversation…"}); void run(null); return; }
       if (session) recordTurn(goal, provider, session, usage?.input ?? 0);
-      if (usage) sqlite.prepare("UPDATE agent_job SET usage_json=? WHERE id=?").run(JSON.stringify({...usage, provider, resumed: !!resume}), id);
+      if (usage) sqlite.prepare("UPDATE agent_job SET usage_json=? WHERE id=?").run(JSON.stringify({...usage, provider, resumed: !!resume, session}), id);
       if (provider === "claude" && answer?.ok) writeFileSync(resultPath, JSON.stringify(answer.output));
       if (code === 0 && existsSync(resultPath)) void finish(true);
       else void finish(false, code === null || timedOut ? "Stopped before finishing." : "The Guide could not finish this one. Your data is unchanged.");
