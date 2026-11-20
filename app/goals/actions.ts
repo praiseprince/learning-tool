@@ -78,3 +78,11 @@ export async function setGoalStatus(goal: string, status: "active" | "paused" | 
   revalidatePath("/", "layout");
   redirect(status === "active" ? `/goals/${goal}` : "/goals");
 }
+
+/** Deletes an archived goal and everything in it. A copy of the database and its files is kept beside the database. */
+export async function deleteGoalForGood(goal: string): Promise<{error?: string}> {
+  requireV2();
+  const {deleteGoal} = await import("@/lib/v2/delete-goal");
+  const r = deleteGoal(goal); if (!r.ok) return {error: r.error};
+  revalidatePath("/", "layout"); return {};
+}

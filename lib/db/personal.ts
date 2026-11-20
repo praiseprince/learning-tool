@@ -13,8 +13,8 @@ export function personalTables(){
  return [...v2Tables.filter(name=>installed.has(name)),...legacyTables];
 }
 /** Copies the whole database next to itself before anything is deleted, so a reset can always be undone by hand. Returns the backup path. */
-export function backupBeforeReset(){
- const dir=dirname(resolve(sqlite.name)),file=join(dir,`backup-before-reset-${new Date().toISOString().replace(/[:.]/g,"-")}.db`);
+export function backupBeforeReset(what="reset"){
+ const dir=dirname(resolve(sqlite.name)),file=join(dir,`backup-before-${what}-${new Date().toISOString().replace(/[:.]/g,"-")}.db`);
  sqlite.exec(`VACUUM INTO '${file.replaceAll("'","''")}'`);
  return file;
 }

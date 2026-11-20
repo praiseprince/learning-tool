@@ -7,6 +7,7 @@ import {ago} from "@/lib/v2/when";
 import {setGoalStatus} from "./actions";
 import {V2Shell} from "@/components/v2/shell";
 import {GoalName, Head} from "@/components/v2/ui";
+import {DeleteGoal} from "@/components/v2/delete-goal";
 
 export default function Goals() {
   const list = goals().sort((a, b) => (b.last ?? "").localeCompare(a.last ?? "") || b.sessions - a.sessions || a.name.localeCompare(b.name)), parked = inactiveGoals(), start = format(startOfWeek(new Date(), {weekStartsOn: preferences().week_start}), "yyyy-MM-dd");
@@ -23,8 +24,9 @@ export default function Goals() {
         <p className="meta num">{g.sessions} {g.sessions === 1 ? "session" : "sessions"}{m ? ` · ${m} min this week` : " · nothing yet this week"}</p></Link></li>;
     })}</ul>
       : parked.length ? <p className="muted">Nothing active. Resume a goal below, or add a new one.</p> : <div className="empty"><p className="prose">No goals yet. Tell me what you want to learn and I will turn it into a roadmap, a map of skills and a first plan.</p><Link className="btn" href="/goals/new">Add your first goal</Link></div>}
-    {parked.length > 0 && <section className="section"><h2>Paused and archived</h2><p className="hint">Hidden from the chat, the Map and search. Nothing is deleted.</p>
+    {parked.length > 0 && <section className="section"><h2>Paused and archived</h2><p className="hint">Hidden from the chat, the Map and search, with everything kept. Only an archived goal can be deleted.</p>
       <ul className="rows">{parked.map(g => <li key={g.id}><div className="row"><Link href={`/goals/${g.id}`} className="t"><GoalName name={g.name} hue={g.hue} /><span className="muted small" style={{fontWeight: 400}}> · {g.status}</span></Link>
-        <form action={setGoalStatus.bind(null, g.id, "active")}><button className="btn btn--quiet btn--sm">Resume</button></form></div></li>)}</ul></section>}
+        <div className="row-actions"><form action={setGoalStatus.bind(null, g.id, "active")}><button className="btn btn--quiet btn--sm">Resume</button></form>
+        {g.status === "archived" && <DeleteGoal goal={g.id} name={g.name} />}</div></div></li>)}</ul></section>}
   </div></V2Shell>;
 }

@@ -789,3 +789,11 @@ body { line-height:1.6; letter-spacing:0; }
 .msg-tools { align-self:flex-end; margin-top:calc(-1 * var(--s3)); font-size:var(--t-meta); color:var(--muted); } .msg-tools .link-btn { font-size:var(--t-meta); }
 .msg-tools.removed { align-self:center; margin-top:0; }
 @media (hover:hover) and (pointer:fine) { .msg-tools:not(.removed) { opacity:0; transition:opacity .15s var(--ease); } .msg.user:hover + .msg-tools,.msg-tools:hover,.msg-tools:focus-within { opacity:1; } }
+
+/* archived goals: resume, or delete with an in-place confirmation */
+.row-actions { display:flex; flex-wrap:wrap; gap:var(--s2); align-items:flex-start; justify-content:flex-end; }
+.confirm-del { display:grid; gap:var(--s2); padding:var(--s3); border:1px solid color-mix(in oklab,var(--danger) 35%,var(--rule)); border-radius:var(--r); background:var(--danger-soft); }
+.confirm-del p { margin:0; } .confirm-del [role=alert] { color:var(--danger); }
+.confirm-del-actions { display:flex; gap:var(--s2); flex-wrap:wrap; }
+.row-actions:has(.confirm-del) { grid-column:1 / -1; justify-content:stretch; } .row-actions:has(.confirm-del) > form { display:none; }
+.row-actions .confirm-del { width:100%; max-width:none; } .confirm-del p.small { max-width:60ch; }
