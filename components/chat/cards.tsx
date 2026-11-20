@@ -1,7 +1,7 @@
 "use client";
 import {useState, useTransition} from "react";
 import {useRouter} from "next/navigation";
-import {acceptInline, acceptWeekInline, dismissInline, dismissWeekInline, finish, finishQuiz, mark, pickMinutes, redoWeek, retryInline, saveAnswer, withdrawInline} from "@/app/chat-actions";
+import {acceptInline, acceptWeekInline, dismissInline, dismissWeekInline, finish, finishQuiz, mark, pickMinutes, redoWeek, retryInline, saveAnswer, withdrawInline, freshInline} from "@/app/chat-actions";
 
 export function MinutesCard({goal, note, active}: {goal: string; note: string; active: boolean}) {
   const [other, setOther] = useState(""), [pending, go] = useTransition();
@@ -108,4 +108,10 @@ export function Retry({goal, seq}: {goal: string; seq: number}) {
 export function Waiting({goal, seq}: {goal: string; seq: number}) {
   const [pending, go] = useTransition();
   return <p className="msg-state">Sends when the Guide is free · <button type="button" className="link-btn" disabled={pending} onClick={() => go(() => withdrawInline(goal, seq))}>Don’t send</button></p>;
+}
+
+/** Shown under the latest reply while the Guide is continuing one session: one tap starts the next message fresh. */
+export function StartFresh({goal}: {goal: string}) {
+  const [pending, go] = useTransition();
+  return <><span title="The Guide keeps a recent session open so follow-ups are quick and cheap. Starting fresh changes nothing it knows about you.">Continuing this conversation</span> · <button type="button" className="link-btn" disabled={pending} onClick={() => go(() => freshInline(goal))}>Start fresh</button></>;
 }

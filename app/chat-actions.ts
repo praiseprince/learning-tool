@@ -33,6 +33,11 @@ export async function quick(goal: string, kind: Quick) {
   requireV2(); known(goal);
   post(goal, {text: QUICK_TEXT[kind], quick: kind}); done();
 }
+/** Ends the Guide's current session for this goal; the next message starts a fresh one. Memory (the database) is untouched. */
+export async function freshInline(goal: string) {
+  requireV2(); known(goal);
+  const {endSession} = await import("@/lib/agent/session"); endSession(goal); addEvent(goal, "fresh", {}); done();
+}
 /** Takes back a message that is still waiting for the Guide. */
 export async function withdrawInline(goal: string, seq: number) { requireV2(); withdraw(goal, seq); done(); }
 export async function pickMinutes(goal: string, minutes: number, note: string) {

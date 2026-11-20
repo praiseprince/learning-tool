@@ -18,7 +18,9 @@ import {goalDetail} from "@/lib/v2/goals";
 import {preferences} from "@/lib/db/personal";
 import {ago} from "@/lib/v2/when";
 import {todaySlot} from "@/lib/agent/week";
-import {MinutesCard, PlanCard, QuizCard, Retry, SaveAnswer, SuggestionCard, Waiting, WeekCard} from "./cards";
+import {MinutesCard, PlanCard, QuizCard, Retry, SaveAnswer, StartFresh, SuggestionCard, Waiting, WeekCard} from "./cards";
+import {aiProvider} from "@/lib/ai/provider";
+import {sessionToResume} from "@/lib/agent/session";
 import {doneDays, weekById} from "@/lib/agent/week";
 import {nextDays} from "@/lib/agent/tasks";
 
@@ -53,6 +55,9 @@ export function Thread({goal, at, older = 0}: {goal: string; at?: number; older?
   const evs = events(goal, limit), st = state(goal), hidden = total - evs.length;
   // after a search, or after "Show earlier" (which passes the message that was first on screen), land on that message
   const mark = at;
+  // while Claude Code keeps a session open, the latest reply offers to start the next message fresh
+  const ai = aiProvider(), warm = ai !== "stub" && !!sessionToResume(goal, ai).id;
+  const freshAt = warm ? [...evs].reverse().find(e => e.kind === "fresh" || (e.kind === "guide" && e.payload.tone !== "error"))?.seq : undefined;
   const last = evs.at(-1)?.seq ?? 0, mats = materials(goal), byId = Object.fromEntries(mats.map(m => [m.id, m]));
   const one = (e: Ev) => {
     if (e.kind === "user") return <div key={e.seq} className={"msg user" + (e.status === "queued" ? " waiting" : e.status === "withdrawn" ? " withdrawn" : "")}>{e.payload.text ? <p>{String(e.payload.text)}</p> : null}<SharedFiles goal={goal} files={sharedFrom(e.payload)} />
@@ -60,11 +65,13 @@ export function Thread({goal, at, older = 0}: {goal: string; at?: number; older?
     if (e.kind === "guide") return <div key={e.seq} className={"msg guide" + (e.payload.tone === "error" ? " error" : "")}><div className="md"><Markdown text={String(e.payload.markdown ?? "")} /></div>
       {e.payload.tone !== "error" && String(e.payload.markdown ?? "").length > 280 && <SaveAnswer goal={goal} seq={e.seq} saved={e.payload.saved} />}
       {e.payload.tone === "error" && e.payload.retry && !e.payload.retried && !st.busy && <Retry goal={goal} seq={e.seq} />}
+      {e.seq === freshAt && !st.busy && <p className="msg-act msg-note"><StartFresh goal={goal} /></p>}
       {e.payload.sources?.length ? <details className="sources"><summary>Based on {e.payload.sources.length} {e.payload.sources.length === 1 ? "thing" : "things"} from your history</summary><ul>{e.payload.sources.map((s: {kind: string; ref: string; quote: string}, i: number) => <li key={i}><span className="muted">{s.ref}</span>{s.quote ? <> “{s.quote}”</> : null}</li>)}</ul></details> : null}</div>;
     if (e.kind === "minutes") return <div key={e.seq} className="msg guide"><MinutesCard goal={goal} note={e.payload.note ?? ""} active={e.seq === last} /></div>;
     if (e.kind === "working") return <div key={e.seq} className="msg guide"><p className="working"><i aria-hidden="true" />{e.payload.label}… this takes about 20 seconds.</p></div>;
     if (e.kind === "job") { const j = getJob(e.payload.job); if (!j) return null; const searches = j.steps.filter(s => s.kind === "search").length;
-      return <div key={e.seq} className="msg guide">{j.status === "running" ? <JobView job={e.payload.job} cancel={cancelJobInline.bind(null, goal, e.payload.job)} /> : <p className="msg-note">{`Worked on it for ${Math.max(1, Math.round((new Date(j.finished_at ?? j.created_at).getTime() - new Date(j.created_at).getTime()) / 1000))}s${searches ? `, ${searches} ${searches === 1 ? "search" : "searches"}` : ""}.`}</p>}</div>; }
+      return <div key={e.seq} className="msg guide">{j.status === "running" ? <JobView job={e.payload.job} cancel={cancelJobInline.bind(null, goal, e.payload.job)} /> : <p className="msg-note">{`Worked on it for ${Math.max(1, Math.round((new Date(j.finished_at ?? j.created_at).getTime() - new Date(j.created_at).getTime()) / 1000))}s${searches ? `, ${searches} ${searches === 1 ? "search" : "searches"}` : ""}`}.</p>}</div>; }
+    if (e.kind === "fresh") return <p key={e.seq} className="fresh-line" role="separator">New conversation. Everything in this goal is still remembered.</p>;
     if (e.kind === "plan") { const p = findPlan(goal, e.payload.plan); if (!p) return <p key={e.seq} className="msg-note">This plan could not be shown.</p>;
       return <div key={e.seq} className="msg guide wide"><PlanCard goal={goal} planId={p.id} title={p.title} why={p.why} saved={p.status === "finished"} initial={marks(p.id)}
         blocks={p.blocks.map(b => { const m = b.material_id ? byId[b.material_id] : undefined; return {title: b.title, minutes: b.minutes, instructions: b.instructions, why: b.why, where: b.where ?? "", material: m ? {id: m.id, title: m.title, creator: m.creator, url: m.url, kind: m.kind, pointer: m.pointer} : null}; })} /></div>; }

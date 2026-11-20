@@ -1,6 +1,6 @@
 import {sqlite} from "../db/client.ts";
 
-export type Kind = "user" | "guide" | "minutes" | "working" | "job" | "plan" | "log" | "suggestions" | "note" | "week" | "quiz";
+export type Kind = "user" | "guide" | "minutes" | "working" | "job" | "plan" | "log" | "suggestions" | "note" | "week" | "quiz" | "fresh";
 export type ChatEvent = {seq: number; goal: string; kind: Kind; payload: any; status: string; created_at: string}; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 let ready = false;
