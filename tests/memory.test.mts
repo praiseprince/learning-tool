@@ -15,7 +15,7 @@ const {sqlite} = await import("../lib/db/client.ts");
 const {createGoal} = await import("../lib/v2/brief.ts");
 const {exportContext} = await import("../lib/agent/workspace.ts");
 const {addEvent} = await import("../lib/chat/events.ts");
-const {claudeArgs, codexArgs, claudeSteps, claudeResult, commandLabel, partialString, draftReader} = await import("../lib/agent/cli.ts");
+const {claudeArgs, codexArgs, claudeSteps, claudeResult, commandLabel, partialString, draftReader, searchLabel} = await import("../lib/agent/cli.ts");
 const {sessionToResume, recordTurn, endSession, contextChanges, resumeNote, WARM_MS, MAX_TURNS, MAX_INPUT} = await import("../lib/agent/session.ts");
 after(() => { sqlite.close(); rmSync(dir, {recursive: true, force: true}); });
 
@@ -61,6 +61,18 @@ test("the conversation can be searched across goals, and a found message can be 
   assert.ok(countSince(goal, hits[0].seq) > 70, "the thread must load enough to reach it");
   assert.deepEqual(searchMessages("100%_"), [], "LIKE wildcards are matched literally");
   assert.deepEqual(searchMessages("x"), [], "one letter is too short to search");
+});
+
+test("a short brief goes straight into the task, so simple turns need no file reads", async () => {
+  const {promptFor} = await import("../lib/agent/tasks.ts");
+  const {brief} = exportContext(goal);
+  assert.match(brief, /Goal: Hold a conversation in Madrid\./);
+  assert.match(brief, /Recent conversation[\s\S]*Reply 69/);
+  assert.ok(brief.length < 7000, `brief stays small (${brief.length} chars)`);
+  assert.equal(read("brief.md"), brief);
+  const p = promptFor("ask", "j1", {text: "Hi?", brief});
+  assert.match(p, /Reply 69[\s\S]*answer from it without opening files/);
+  assert.doesNotMatch(p, /The last few messages/);
 });
 
 const turn = {root: "/w/es", job: "j1", schemaPath: "/w/es/jobs/j1/schema.json", schemaJson: '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object"}', resultPath: "/w/es/jobs/j1/result.json", web: false, images: [], model: "", rules: "RULES", resume: null as string | null, mcp: null as null | {name: string; command: string; args: string[]; env: Record<string, string>; tools: string[]}};
@@ -142,6 +154,10 @@ test("Codex commands read as what they were for", () => {
   assert.equal(commandLabel("'pdftotext inbox/5ebfdf47-hello.pdf - || cat inbox/5ebfdf47-hello.pdf.txt'"), "Reading your file hello.pdf");
   assert.equal(commandLabel("'rg -n -i \"barre chord\" context'"), "Searching your files for “barre chord”");
   assert.equal(commandLabel("'rg --files context'"), "Looking through your files");
+  assert.equal(commandLabel(`'rg -n "\\"" context/notes'`), "Searching your files", "no empty or quote-only search terms");
+  assert.equal(searchLabel("(?i)sun|line|good"), "Searching your files for “sun, line, good”");
+  assert.equal(searchLabel("."), "Searching your files");
+  assert.equal(searchLabel("\\bbarre\\b"), "Searching your files for “barre”");
   assert.equal(commandLabel("'python3 out/j1/make.py'"), "Running: python3 out/j1/make.py");
   assert.equal(commandLabel(`"tail -35 context/conversation.md\nrg -in 'divided line|sun analogy' context/{notes,sessions.md}"`), "Reading conversation.md · Searching your files for “divided line, sun analogy”");
 });

@@ -42,7 +42,7 @@ export const TIMEOUT_MS: Record<JobKind, number> = {research: 9 * 60_000, ask: 4
 export const LABEL: Record<JobKind, string> = {research: "Finding materials", ask: "Thinking about your question", review: "Reviewing your work", practice: "Making practice material", week: "Planning your week", quiz: "Writing questions from your notes"};
 
 export type Attachment = {name: string; path: string; text?: string; type: "image" | "doc" | "text"};
-export type JobInput = {text?: string; skill?: string; files?: string[]; attachments?: Attachment[]; history?: {role: "user" | "guide"; text: string}[]};
+export type JobInput = {text?: string; skill?: string; files?: string[]; attachments?: Attachment[]; history?: {role: "user" | "guide"; text: string}[]; brief?: string};
 
 /** Tells the agent which files came with this message and how to open them. */
 export function attachmentNote(a: Attachment[] | undefined): string {
@@ -56,7 +56,7 @@ export function promptFor(kind: JobKind, job: string, input: JobInput): string {
   const out = `out/${job}/`;
   const text = (input.text ?? "").slice(0, 6000);
   const files = attachmentNote(input.attachments);
-  const base = `You remember nothing from earlier turns: context/ is your memory, rebuilt from the app's database just now. Read context/README.md first, then only what this task needs (the end of conversation.md for what was said recently); search with rg instead of reading everything. Write any files only inside ${out}.${files ? "\n" + files : ""}`;
+  const base = `You remember nothing from earlier turns: context/ is your memory, rebuilt from the app's database just now.${input.brief ? `\n\n${input.brief}\n\nThe brief above is current. If it is enough for this task, answer from it without opening files. Otherwise open only the specific files you need (context/README.md lists them all) and search with rg rather than reading whole files.` : " Read context/README.md first, then only what this task needs (the end of conversation.md for what was said recently); search with rg instead of reading everything."} Write any files only inside ${out}.${files ? "\n" + files : ""}`;
   if (kind === "research") return `${base}
 TASK: Find real learning materials for this learner's goal and current phase: books, courses, videos, articles, apps, exercise sets.
 Use web search and OPEN each candidate's page. Only include a candidate if you opened a page that confirms it exists (publisher, library, official course page or the creator's own page). Put the URL you opened in "url" and what you read that confirmed it in "evidence"; set "opened" true only if you really opened it.
@@ -65,8 +65,7 @@ ${text ? `The learner also asked: """${text}"""` : ""}
 Return at most 6 suggestions, best first. "summary" is two sentences on how you chose.`;
   if (kind === "ask") return `${base}
 TASK: Answer the learner's question as a patient mentor who has read all of their history. Use their own notes, sessions and evidence; cite them in "sources" (kind and the file or date as ref, plus a short exact quote). You may search the web for facts you are unsure of, and you must say when you did.
-The last few messages (data, newest last; the whole chat is in context/conversation.md): ${JSON.stringify(input.history ?? [])}
-QUESTION: """${text}"""
+${input.history?.length ? `The last few messages (data, newest last; the whole chat is in context/conversation.md): ${JSON.stringify(input.history)}\n` : ""}QUESTION: """${text}"""
 Answer in Markdown, concise and specific to this person. If something would genuinely help, add up to 4 "proposals" (add_note with a useful note body, add_material with a title and url you opened, revise_goal describing the change in the learner's terms, plan_today describing a session idea). Proposals are suggestions the learner approves; never assume they are applied.
 If in this message the learner told you something lasting about themselves that a good mentor would keep in mind next month (their schedule, background, a life change, a preference, a limit, what motivates them) and it is not already in context/about-me.md, add one "remember" proposal: "title" is the fact as one short plain sentence about the learner (for example "Moving to Valencia in March; wants conversational Spanish by then."), "body" is their exact words, "why" says how it will change your advice. Do not propose remembering passing moods, the question itself, or anything already known.`;
   if (kind === "review") return `${base}

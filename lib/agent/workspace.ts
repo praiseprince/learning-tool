@@ -105,6 +105,7 @@ export function exportContext(goal: string) {
 You have no memory between turns. These files ARE your memory: the app rebuilds them from its database before every turn, so they are always current and complete.
 Read only what the task needs. Never print whole folders or every file at once: every token you read is paid for again on each later step. Start with the end of conversation.md and the one or two files the task points to, then use grep (rg) to find specific things in larger files, notes/, library/ and the archives.
 
+- brief.md         the short summary already given to you in the task (do not reread it)
 - goal.md          the goal, why, constraints and roadmap (with the current phase)
 - about-me.md      what the learner has told the app about themselves (all goals)
 - conversation.md  the chat with the learner for this goal, oldest first; the most recent part is what they are reacting to
@@ -122,7 +123,9 @@ Read only what the task needs. Never print whole folders or every file at once: 
 
 Exported ${new Date().toISOString()}.
 `);
-  return {root, files: readdirSync(ctx).length};
+  const b = briefOf(goal, {brief, step: step?.title ?? "", rows, sessions: h.sessions, facts, mats, notes: notes.filter(n => n.journey_id === goal).map(n => n.title)});
+  writeFileSync(join(ctx, "brief.md"), b);
+  return {root, files: readdirSync(ctx).length, brief: b};
 }
 
 export function newOutDir(goal: string, job: string) {
@@ -178,4 +181,22 @@ function writeAtlas(goal: string, ctx: string) {
     out.push("");
   }
   writeFileSync(join(ctx, "atlas.md"), out.join("\n"));
+}
+
+/** A compact picture of where the learner is, put straight into the task so a simple turn needs few or no file reads.
+ * Every agent step re-sends everything read so far, so fewer reads is what makes a turn cheap. Capped near 1,500 tokens. */
+function briefOf(goal: string, x: {brief: ReturnType<typeof currentBrief>; step: string; rows: ReturnType<typeof skillRows>; sessions: {occurred_on: string; minutes: number | null; raw_text: string}[]; facts: {text: string}[]; mats: ReturnType<typeof materials>; notes: string[]}) {
+  const one = (t: string, n: number) => { const s = (t ?? "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
+  const said = (sqlite.prepare("SELECT kind,payload_json,created_at FROM chat_event WHERE goal=? AND kind IN ('user','guide') AND status NOT IN ('queued','withdrawn') ORDER BY seq DESC LIMIT 8").all(goal) as Ev[]).reverse()
+    .map(r => { let p: Record<string, unknown> = {}; try { p = JSON.parse(r.payload_json); } catch { /* skip */ } const t = String(p.text ?? p.markdown ?? ""); return t ? `- ${r.kind === "user" ? "Learner" : "Guide"} (${r.created_at.slice(0, 10)}): ${one(t, 360)}` : ""; }).filter(Boolean);
+  const skills = [...x.rows].sort((a, b) => (b.last ?? "").localeCompare(a.last ?? "")).slice(0, 14).map(r => `${r.name} ${r.level}/5`);
+  return [`# Brief (from the database, ${new Date().toISOString().slice(0, 10)})`,
+    `Goal: ${one(x.brief.goal, 300)}`, x.step && `Current phase: ${x.step}`, `Where they are: ${one(x.brief.currentPosition, 400) || "not described"}`, x.brief.constraints && `Constraints: ${one(x.brief.constraints, 240)}`,
+    x.facts.length ? `About them: ${x.facts.slice(0, 10).map(f => one(f.text, 140)).join(" | ")}` : "",
+    skills.length ? `Skills (level 0-5, most recently practised first): ${skills.join(", ")}` : "",
+    x.sessions.length ? `Last sessions:\n${x.sessions.slice(0, 3).map(s => `- ${s.occurred_on}${s.minutes ? ` (${s.minutes} min)` : ""}: ${one(s.raw_text, 420)}`).join("\n")}` : "No sessions yet.",
+    x.mats.length ? `Materials: ${x.mats.slice(0, 8).map(m => `${one(m.title, 70)}${m.pointer ? ` (at ${one(m.pointer, 40)})` : ""}`).join("; ")}` : "",
+    x.notes.length ? `Notes in context/notes/: ${x.notes.slice(0, 20).map(t => one(t, 60)).join("; ")}` : "",
+    said.length ? `Recent conversation (older in context/conversation.md):\n${said.join("\n")}` : "No conversation yet.",
+  ].filter(Boolean).join("\n");
 }

@@ -65,7 +65,8 @@ export function startJob(goal: string, kind: JobKind, input: JobInput = {}): str
   sqlite.prepare("INSERT INTO agent_job(id,goal,kind,status,input_json,steps_json,created_at) VALUES (?,?,?,'running',?,'[]',?)").run(id, goal, kind, JSON.stringify(input), now);
   const steps: Step[] = [{at: now, kind: "say", text: LABEL[kind] + "…"}];
   const root = workspaceDir(goal);
-  try { exportContext(goal); newOutDir(goal, id); mkdirSync(join(root, "jobs", id), {recursive: true}); }
+  let brief = "";
+  try { brief = exportContext(goal).brief; newOutDir(goal, id); mkdirSync(join(root, "jobs", id), {recursive: true}); }
   catch (e) { save(id, {status: "failed", error: String((e as Error).message), finished: true}); return id; }
   const finish = async (ok: boolean, why?: string) => { try { await end(ok, why); } finally { next(goal); } };
   const end = async (ok: boolean, why?: string) => {
@@ -105,7 +106,7 @@ export function startJob(goal: string, kind: JobKind, input: JobInput = {}): str
     const mcp = fc ? {name: "firecrawl", command: process.execPath, args: ["--no-warnings", join(process.cwd(), "lib", "agent", "firecrawl-mcp.ts")],
       env: {FIRECRAWL_URL: firecrawlUrl(), MARGINALIA_READ_LOG: join(root, "jobs", id, "reads.jsonl"), ...(process.env.FIRECRAWL_API_KEY ? {FIRECRAWL_API_KEY: process.env.FIRECRAWL_API_KEY} : {})}, tools: ["read_page"]} : null;
     const turn = {root, job: id, schemaPath, schemaJson, resultPath, web: NEEDS_WEB[kind], images, model: aiModel(provider), rules: RULES, resume, mcp};
-    const prompt = [resume ? resumeNote(changed) : "", fc ? FIRECRAWL_NOTE : "", promptFor(kind, id, resume ? {...input, history: undefined} : input)].filter(Boolean).join("\n\n");
+    const prompt = [resume ? resumeNote(changed) : "", fc ? FIRECRAWL_NOTE : "", promptFor(kind, id, resume ? {...input, history: undefined} : {...input, brief, history: undefined})].filter(Boolean).join("\n\n");
     const child = spawn(provider, provider === "codex" ? codexArgs(turn) : claudeArgs(turn), {cwd: root, stdio: ["pipe", "pipe", "pipe"]});
     running.set(id, child);
     let answer: ReturnType<typeof claudeResult> = null, session: string | null = null, usage: ReturnType<typeof usageFrom> = null, buf = "", last = 0, timedOut = false;

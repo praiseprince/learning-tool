@@ -57,6 +57,8 @@ export function claudeResult(e: any): {ok: true; output: unknown} | {ok: false; 
 const now = () => new Date().toISOString();
 /** A workspace path as the learner would say it: "sessions.md", "your file essay.pdf". */
 export const pathLabel = (r: string) => r.startsWith("inbox/") ? `your file ${r.slice(6).replace(/^[a-f0-9]{8}-/, "").replace(/\.txt$/, "")}` : r.replace(/^(\.\/)?context\//, "");
+/** A search pattern as words: "(?i)sun|line" reads as “sun, line”; a pattern of punctuation reads as nothing in particular. */
+export const searchLabel = (raw: string) => { const q = raw.replace(/^\(\?[a-z]+\)/, "").replace(/\\[bswdB]/g, "").replace(/^["'\\]+|["'\\]+$/g, "").replace(/\\?\|/g, ", ").trim(); return /[\p{L}\p{N}]{2}/u.test(q) ? `Searching your files for “${q.slice(0, 60)}”` : "Searching your files"; };
 /** What a shell command the agent ran was for, in plain words, when that is clear; otherwise the command itself. */
 export function commandLabel(cmd: string): string {
   const c = cmd.replace(/^\S*sh -lc\s+/, "").trim().replace(/^(['"])([\s\S]*)\1$/, "$2").trim();
@@ -64,7 +66,7 @@ export function commandLabel(cmd: string): string {
   const one = (part: string): string | null => {
     const paths = [...new Set((part.match(/(?:\.\/)?(?:context|inbox)\/[^\s'";|&><)]+/g) ?? []).flatMap(expand).map(pathLabel).filter(x => x && !/[*?]/.test(x)))];
     const search = /^(rg|grep)\b/.test(part) && !/--files\b/.test(part) && /(?:rg|grep)\s+(?:-[\w-]+(?:\s+\d+)?\s+)*(?:"([^"]+)"|'([^']+)'|(\S+))/.exec(part);
-    if (search) return `Searching your files for “${(search[1] ?? search[2] ?? search[3]).replace(/\|/g, ", ").slice(0, 60)}”`;
+    if (search) return searchLabel(search[1] ?? search[2] ?? search[3]);
     if (/^(cat|sed|head|tail|nl|less|wc|pdftotext|awk)\b/.test(part) && paths.length) return `Reading ${paths.slice(0, 4).join(", ")}${paths.length > 4 ? ` and ${paths.length - 4} more` : ""}`;
     if (/^(ls|rg --files|find|tree)\b/.test(part)) return "Looking through your files";
     return null;
@@ -105,7 +107,7 @@ export function claudeSteps(e: any, root: string): Step[] { // eslint-disable-li
     else if (b.name === "WebSearch" && i.query) out.push({at, kind: "search", text: `Searching the web: ${String(i.query).slice(0, 120)}`});
     else if (b.name === "WebFetch" && i.url) out.push({at, kind: "open", text: `Reading ${host(String(i.url))}`});
     else if (b.name === "Read" && i.file_path) out.push({at, kind: "open", text: `Reading ${label(i.file_path)}`});
-    else if (b.name === "Grep" && i.pattern) out.push({at, kind: "search", text: `Searching your files for “${String(i.pattern).slice(0, 60)}”`});
+    else if (b.name === "Grep" && i.pattern) out.push({at, kind: "search", text: searchLabel(String(i.pattern))});
     else if ((b.name === "Write" || b.name === "Edit") && i.file_path) out.push({at, kind: "write", text: `Writing ${String(i.file_path).split("/").pop()}`});
   }
   return out;
