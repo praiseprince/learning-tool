@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- images served from the learner's own workspace */
 import Link from "next/link";
 import {sqlite} from "@/lib/db/client";
 import {findPlan} from "@/lib/db/plans";
@@ -9,6 +10,9 @@ import {JobView} from "@/components/v2/job-view";
 import {EntryReview} from "@/components/features/entry-review";
 import {cancelJobInline} from "@/app/chat-actions";
 import {Live} from "./live";
+import {sharedFrom} from "@/lib/chat/files";
+import {sizeLabel, type Shared} from "@/lib/chat/file-types";
+import {extname} from "@/lib/chat/ext";
 import {Example} from "./composer";
 import {goalDetail} from "@/lib/v2/goals";
 import {preferences} from "@/lib/db/personal";
@@ -28,6 +32,16 @@ function LogCard({goal, entry, minutes}: {goal: string; entry: string; minutes: 
   return <div className="card log"><p className="card-t">Session saved</p><EntryReview key={entry} entry={entry} changes={changes} minutes={row.minutes ?? minutes ?? 0} summary={summary?.summary} resolution={row.status} names={names} /></div>;
 }
 
+/** Files the learner sent: images as thumbnails, everything else as a row that downloads the original. */
+function SharedFiles({goal, files}: {goal: string; files: Shared[]}) {
+  if (!files.length) return null;
+  const href = (f: Shared, dl = false) => `/api/files/${goal}/${encodeURIComponent(f.stored)}${dl ? "?download" : ""}`;
+  const imgs = files.filter(f => f.type === "image" && f.stored), rest = files.filter(f => !imgs.includes(f));
+  return <>{imgs.length > 0 && <ul className="shots" aria-label="Attached images">{imgs.map(f => <li key={f.stored}><a href={href(f)} target="_blank" rel="noreferrer" title={f.name}><img src={href(f)} alt={f.name} loading="lazy" /></a></li>)}</ul>}
+    {rest.length > 0 && <ul className="files" aria-label="Attached files">{rest.map((f, i) => <li key={f.stored || i}><span className="ext" aria-hidden="true">{extname(f.name).slice(1, 5) || "file"}</span>
+      {f.stored ? <a href={href(f, true)} title={`Download ${f.name}`}><bdi>{f.name}</bdi></a> : <bdi>{f.name}</bdi>}{f.size ? <small>{sizeLabel(f.size)}</small> : null}</li>)}</ul>}</>;
+}
+
 type Ev = ReturnType<typeof events>[number];
 /** A suggestion is only shown when its stored payload has the fields its card needs. */
 const showable = (kind: string, p: any) => kind === "agent_material" ? !!p?.suggestion?.title : kind === "agent_action" ? !!p?.title : kind === "agent_evidence" ? !!p?.quote && !!p?.skillName : false; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -37,7 +51,7 @@ const parse = (s: string) => { try { return JSON.parse(s); } catch { return null
 export function Thread({goal}: {goal: string}) {
   const evs = events(goal), st = state(goal), last = evs.at(-1)?.seq ?? 0, mats = materials(goal), byId = Object.fromEntries(mats.map(m => [m.id, m]));
   const one = (e: Ev) => {
-    if (e.kind === "user") return <div key={e.seq} className="msg user"><p>{String(e.payload.text ?? "")}</p>{e.payload.files?.length ? <ul className="files" aria-label="Attached files">{(e.payload.files as string[]).map((f, i) => <li key={i} title={f}>{f}</li>)}</ul> : null}</div>;
+    if (e.kind === "user") return <div key={e.seq} className="msg user">{e.payload.text ? <p>{String(e.payload.text)}</p> : null}<SharedFiles goal={goal} files={sharedFrom(e.payload)} /></div>;
     if (e.kind === "guide") return <div key={e.seq} className={"msg guide" + (e.payload.tone === "error" ? " error" : "")}><div className="md"><Markdown text={String(e.payload.markdown ?? "")} /></div>
       {e.payload.tone !== "error" && String(e.payload.markdown ?? "").length > 280 && <SaveAnswer goal={goal} seq={e.seq} saved={e.payload.saved} />}
       {e.payload.sources?.length ? <details className="sources"><summary>Based on {e.payload.sources.length} {e.payload.sources.length === 1 ? "thing" : "things"} from your history</summary><ul>{e.payload.sources.map((s: {kind: string; ref: string; quote: string}, i: number) => <li key={i}><span className="muted">{s.ref}</span>{s.quote ? <> “{s.quote}”</> : null}</li>)}</ul></details> : null}</div>;
@@ -76,6 +90,6 @@ function Hello({goal}: {goal: string}) {
   const lead = slot?.minutes ? `${slot.minutes} minutes in your week plan. ` : slot ? "Your week plan has today off. " : "";
   const examples = [`I have ${mins} minutes and I’m a bit tired`, step ? `Quiz me on ${step.replace(/^(The|A|An) /, w => w.toLowerCase())}` : "Quiz me on my notes", "Plan my week, I’m away on Thursday", "I practised for 20 minutes and the second half went badly"];
   return <div className="hello"><h2>{title}</h2>
-    <p>{lead}{last ? `Last session ${ago(last)}.` : "No sessions yet."} Ask me to plan a session or your week, quiz you, find materials or review work you attach.</p>
+    <p>{lead}{last ? `Last session ${ago(last)}.` : "No sessions yet."} Ask me to plan a session or your week, quiz you, find materials, or look at files you attach.</p>
     <ul aria-label="Try saying">{examples.map(t => <li key={t}><Example text={t} /></li>)}</ul></div>;
 }

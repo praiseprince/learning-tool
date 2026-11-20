@@ -115,6 +115,7 @@ Read only what the task needs. Never print whole folders or every file at once: 
 - evidence.md      the exact words that moved skill levels
 - materials.md     books, courses, videos, tools they use, with where they are up to
 - plans.md         recent daily plans
+- files.md         every file the learner shared in this chat, with its path in inbox/
 - notes/           every note for this goal and unfiled notes (Markdown)
 - library/         notes from their OTHER goals; start at library/INDEX.md
 - preferences.md   session length, time of day, today's date, the next 7 dates, the accepted week plan
@@ -136,13 +137,15 @@ export function listOut(goal: string, job: string) {
 }
 
 type Ev = {kind: string; payload_json: string; created_at: string};
+type SharedFile = {name: string; stored: string; type: string; text?: string};
+const filesIn = (p: Record<string, unknown>): SharedFile[] => Array.isArray(p.files) ? p.files.map(f => typeof f === "string" ? {name: f, stored: "", type: "file"} : f as SharedFile).filter(f => f?.name) : [];
 /** The whole chat for this goal, as the learner saw it. Cards are summarised; their details live in the other files. */
 function writeConversation(goal: string, ctx: string) {
   const rows = sqlite.prepare("SELECT kind,payload_json,created_at FROM chat_event WHERE goal=? AND kind IN ('user','guide','week','quiz','suggestions','note','plan','log') ORDER BY seq").all(goal) as Ev[];
   const line = (r: Ev) => {
     let p: Record<string, unknown> = {}; try { p = JSON.parse(r.payload_json); } catch { /* keep empty */ }
     const at = r.created_at.slice(0, 16).replace("T", " "), body = String(p.text ?? p.markdown ?? "");
-    if (r.kind === "user") return body ? `**Learner** (${at}): ${clip(body, 4000)}` : "";
+    if (r.kind === "user") { const f = filesIn(p); return body || f.length ? `**Learner** (${at}): ${clip(body, 4000)}${f.length ? ` [attached: ${f.map(x => x.stored ? `inbox/${x.stored}` : x.name).join(", ")}]` : ""}` : ""; }
     if (r.kind === "guide") return body ? `**Guide** (${at}): ${clip(body, 4000)}` : "";
     if (r.kind === "quiz") return `*(${at}) Guide gave a quiz: ${String(p.title ?? "")}, ${Array.isArray(p.questions) ? p.questions.length : 0} questions.*`;
     if (r.kind === "week") return `*(${at}) Guide proposed a week plan (see preferences.md and plans.md).*`;
@@ -150,6 +153,9 @@ function writeConversation(goal: string, ctx: string) {
     if (r.kind === "note") return `*(${at}) A note was saved${p.title ? `: ${String(p.title)}` : ""} (see notes/).*`;
     return `*(${at}) ${r.kind === "log" ? "The learner logged a session (see sessions.md)." : "A plan was shown."}*`;
   };
+  const shared = rows.filter(r => r.kind === "user").flatMap(r => { let p: Record<string, unknown> = {}; try { p = JSON.parse(r.payload_json); } catch { /* skip */ } return filesIn(p).filter(f => f.stored).map(f => ({...f, at: r.created_at.slice(0, 10), said: clip(String(p.text ?? ""), 160)})); });
+  writeFileSync(join(ctx, "files.md"), "# Files the learner shared in this chat (newest first)\n\nThe originals are in inbox/. A .txt beside a document holds its text.\n\n" +
+    (shared.reverse().map(f => `- ${f.at} inbox/${f.stored} ("${f.name}", ${f.type}${f.text ? `, text in inbox/${f.text}` : ""})${f.said ? `: they wrote “${f.said}”` : ""}`).join("\n") || "None yet.") + "\n");
   const lines = rows.map(line).filter(Boolean), keep = 60, older = lines.slice(0, -keep), recent = lines.slice(-keep);
   writeFileSync(join(ctx, "conversation.md"), "# Conversation for this goal (oldest first)\n\n" + (older.length ? `${older.length} earlier messages are in conversation-archive.md.\n\n` : "") + (recent.join("\n\n") || "No messages yet.") + "\n");
   if (older.length) writeFileSync(join(ctx, "conversation-archive.md"), "# Earlier conversation (oldest first)\n\n" + older.join("\n\n") + "\n");

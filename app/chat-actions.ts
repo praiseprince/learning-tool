@@ -1,7 +1,5 @@
 "use server";
-import {mkdirSync, writeFileSync} from "node:fs";
 import {randomUUID} from "node:crypto";
-import {basename} from "node:path";
 import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
 import {requireV2} from "@/lib/v2/access";
@@ -10,11 +8,11 @@ import {goalDetail} from "@/lib/v2/goals";
 import {updateMaterial} from "@/lib/v2/materials";
 import {accept, dismiss, pending} from "@/lib/agent/accept";
 import {runningJob, startJob} from "@/lib/agent/jobs";
-import {inside} from "@/lib/agent/workspace";
 import {addEvent, events, updateEvent} from "@/lib/chat/events";
 import {acceptWeek, todaySlot, weekById} from "@/lib/agent/week";
 import {storeDocument} from "@/lib/v2/notebook";
-import {classify, logEntry, runPlan, saveSession} from "@/lib/chat/run";
+import {classify, logEntry, runPlan, saveSession, withFiles} from "@/lib/chat/run";
+import {saveShared, type Shared} from "@/lib/chat/files";
 
 const text = (d: FormData, k: string, n = 6000) => String(d.get(k) ?? "").trim().slice(0, n);
 const done = () => revalidatePath("/", "layout");
@@ -34,20 +32,17 @@ function plan(goal: string, minutes: number, note: string) {
   void runPlan(goal, minutes, note, seq);
 }
 
-const ALLOWED = /\.(png|jpe?g|webp|gif|pdf|txt|md)$/i;
 /** One message box for everything: it works out whether you want a plan, are logging practice, sharing work, or asking something. */
 export async function send(goal: string, data: FormData) {
   requireV2(); known(goal);
-  const msg = text(data, "text", 4000), files = (data.getAll("files") as File[]).filter(f => f && f.size > 0).slice(0, 4);
+  const msg = text(data, "text", 4000), files = (data.getAll("files") as File[]).filter(f => f && typeof f === "object" && f.size > 0);
   if (!msg && !files.length) return {error: "Write something first."};
   if (files.length) {
-    const saved: string[] = [], batch = randomUUID().slice(0, 8);
-    for (const f of files) {
-      if (!ALLOWED.test(f.name) || f.size > 8 * 1024 * 1024) return {error: "That file type or size isn't supported (images, PDF, text; up to 8 MB)."};
-      const name = `${batch}-${basename(f.name).replace(/[^A-Za-z0-9._-]+/g, "_").slice(-80)}`;
-      mkdirSync(inside(goal, "inbox"), {recursive: true}); writeFileSync(inside(goal, "inbox", name), Buffer.from(await f.arrayBuffer())); saved.push(name);
-    }
-    addEvent(goal, "user", {text: msg, files: files.map(f => f.name)}); agent(goal, "review", {text: msg, files: saved}); done(); return {};
+    if (runningJob(goal)) return {error: "The Guide is still working on your last request. Send these when it has finished."};
+    let shared: Shared[]; try { shared = await saveShared(goal, files); } catch (e) { return {error: (e as Error).message}; }
+    const kind = withFiles(msg), attachments = shared.map(f => ({name: f.name, path: `inbox/${f.stored}`, text: f.text ? `inbox/${f.text}` : undefined, type: f.type}));
+    addEvent(goal, "user", {text: msg, files: shared});
+    agent(goal, kind, {text: msg, files: shared.map(f => f.stored), attachments, ...(kind === "ask" ? {history: history(goal)} : {})}); done(); return {};
   }
   addEvent(goal, "user", {text: msg});
   const intent = classify(msg);

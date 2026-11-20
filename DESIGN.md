@@ -10,7 +10,7 @@ The earlier versions spread the product over five pages and six tabs per goal, w
 - Events live in `chat_event`; the agent runner is `lib/agent/`; thread rendering is `components/chat/`.
 
 ## Principles
-1. One input box for everything. A message is classified (plan / log / ask); chips cover the common actions; attachments mean "review my work".
+1. One input box for everything. A message is classified (plan / log / ask); chips cover the common actions. Files (drop, paste or attach) go with the message: on their own or with "feedback on this" they get a review; with a question, quiz or practice request they are what the Guide works from.
 2. One tap where possible: minutes are chips, each plan step is one tap, saving a session is one tap, accepting a suggestion is one tap.
 3. Nothing the AI proposes changes your data until you accept it, and it is shown inline where it was proposed.
 4. Always show what is happening (live agent steps, "planning, about 20 seconds"), never a blank wait.

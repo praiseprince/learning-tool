@@ -1,6 +1,6 @@
 // How each agent CLI is invoked for one turn, and how its event stream is read.
 // A turn either starts a fresh session or resumes the goal's recent one (see lib/agent/session.ts); the database stays the memory either way.
-import {relative} from "node:path";
+import {basename, relative} from "node:path";
 
 export type Step = {at: string; kind: "search" | "open" | "run" | "write" | "say" | "error"; text: string};
 export type Turn = {root: string; job: string; schemaPath: string; schemaJson: string; resultPath: string; web: boolean; images: string[]; model: string; rules: string; resume: string | null; mcp: Mcp | null};
@@ -72,7 +72,11 @@ export function codexSteps(e: any): Step[] { // eslint-disable-line @typescript-
 /** Turns one Claude Code stream-json event into human steps. */
 export function claudeSteps(e: any, root: string): Step[] { // eslint-disable-line @typescript-eslint/no-explicit-any
   if (e?.type !== "assistant" || !Array.isArray(e.message?.content)) return [];
-  const at = now(), rel = (p: unknown) => relative(root, String(p ?? "")) || String(p ?? "");
+  const at = now(), rel = (p: unknown) => {
+    const f = String(p ?? ""), r = relative(root, f); if (r && !r.startsWith("..")) return r;
+    const mark = "/" + basename(root) + "/", i = f.lastIndexOf(mark); return i >= 0 ? f.slice(i + mark.length) : basename(f); // e.g. /private/var vs /var
+  };
+  const label = (p: unknown) => { const r = rel(p); return r.startsWith("inbox/") ? `your file ${r.slice(6).replace(/^[a-f0-9]{8}-/, "").replace(/\.txt$/, "")}` : r.replace(/^context\//, ""); };
   const out: Step[] = [];
   for (const b of e.message.content) {
     const i = b?.input ?? {};
@@ -81,7 +85,7 @@ export function claudeSteps(e: any, root: string): Step[] { // eslint-disable-li
     if (/^mcp__.+__read_page$/.test(b.name) && i.url) out.push({at, kind: "open", text: `Reading ${host(String(i.url))}`});
     else if (b.name === "WebSearch" && i.query) out.push({at, kind: "search", text: `Searching the web: ${String(i.query).slice(0, 120)}`});
     else if (b.name === "WebFetch" && i.url) out.push({at, kind: "open", text: `Reading ${host(String(i.url))}`});
-    else if (b.name === "Read" && i.file_path) out.push({at, kind: "open", text: `Reading ${rel(i.file_path).replace(/^context\//, "")}`});
+    else if (b.name === "Read" && i.file_path) out.push({at, kind: "open", text: `Reading ${label(i.file_path)}`});
     else if (b.name === "Grep" && i.pattern) out.push({at, kind: "search", text: `Searching your files for “${String(i.pattern).slice(0, 60)}”`});
     else if ((b.name === "Write" || b.name === "Edit") && i.file_path) out.push({at, kind: "write", text: `Writing ${String(i.file_path).split("/").pop()}`});
   }

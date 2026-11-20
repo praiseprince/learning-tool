@@ -23,6 +23,17 @@ export function classify(text: string): Intent {
   return {kind: "ask"};
 }
 
+/** What to do with a message that comes with files: feedback on work by default, or whatever the words ask for. */
+export function withFiles(text: string): "review" | "ask" | "quiz" | "practice" | "week" {
+  const lower = text.trim().toLowerCase();
+  if (!lower) return "review";
+  const i = classify(text);
+  if (i.kind === "quiz" || i.kind === "practice" || i.kind === "week") return i.kind;
+  if (i.kind === "log" || i.kind === "plan") return "review";
+  if (/\b(feedback|review|critique|mark|grade|assess|correct(ions)?|improve|how did i do|how (is|was|does) (my|this)|what do you think|thoughts on|check (my|this)|my (work|essay|draft|drawing|sketch|attempt|answers?|solution|code|homework|recording|writing|translation|exercise))\b/.test(lower)) return "review";
+  return "ask";
+}
+
 /** Builds the daily plan in the background and swaps the "working" card for the plan when it is ready. */
 export async function runPlan(goal: string, minutes: number, note: string, seq: number) {
   try {

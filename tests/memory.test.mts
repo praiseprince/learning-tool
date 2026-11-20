@@ -105,6 +105,8 @@ test("a resumed turn is told which context files changed", () => {
 test("Claude Code events become steps and a structured answer", () => {
   const steps = claudeSteps({type: "assistant", message: {content: [{type: "tool_use", name: "Read", input: {file_path: "/w/es/context/sessions.md"}}, {type: "tool_use", name: "WebFetch", input: {url: "https://www.example.org/x"}}]}}, "/w/es");
   assert.deepEqual(steps.map(s => s.text), ["Reading sessions.md", "Reading example.org"]);
+  const linked = claudeSteps({type: "assistant", message: {content: [{type: "tool_use", name: "Read", input: {file_path: "/private/w/es/inbox/ab12cd34-scan.pdf.txt"}}]}}, "/w/es");
+  assert.deepEqual(linked.map(s => s.text), ["Reading your file scan.pdf"], "a symlinked root still gives a short label");
   assert.deepEqual(claudeResult({type: "result", is_error: false, structured_output: {a: 1}}), {ok: true, output: {a: 1}});
   assert.equal(claudeResult({type: "result", is_error: true, result: "boom"})?.ok, false);
   assert.equal(claudeResult({type: "assistant"}), null);

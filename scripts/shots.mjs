@@ -24,6 +24,14 @@ await ingest({id: "shots-week-1", goal: "plato", kind: "week", input: {}}, stubR
 acceptWeek("plato", events("plato").filter(e => e.kind === "week").at(-1).payload.week);
 await ingest({id: "shots-week-2", goal: "plato", kind: "week", input: {}}, stubResult("week", "shots-week-2", {}, ctx));
 await ingest({id: "shots-quiz", goal: "plato", kind: "quiz", input: {}}, stubResult("quiz", "shots-quiz", {}, ctx));
+// A message with shared files: an image, a long-named PDF and a text file.
+const {saveShared} = await import("../lib/chat/files.ts");
+const {addEvent} = await import("../lib/chat/events.ts");
+const {readFileSync} = await import("node:fs");
+const fx = f => readFileSync(new URL("../tests/fixtures/" + f, import.meta.url));
+addEvent("plato", "user", {text: "Here is my sketch of the cave and the reading. Does my sketch get the divided line right?", files: await saveShared("plato", [
+  new File([fx("sketch.png")], "cave-sketch.png"), new File([fx("hello.pdf")], "Republic Book VII, Jowett translation, annotated by me for the reading group.pdf"), new File(["# Divided line\nimages, things, maths, forms"], "divided-line.md")])});
+addEvent("plato", "user", {text: "", files: await saveShared("plato", [new File([fx("sketch.png")], "second.png")])});
 const note = sqlite.prepare("SELECT id FROM document WHERE journey_id='plato' AND status='active' ORDER BY updated_at DESC LIMIT 1").get()?.id;
 const node = sqlite.prepare("SELECT id FROM atlas_node LIMIT 1").get()?.id;
 const source = sqlite.prepare("SELECT id FROM resource LIMIT 1").get()?.id;
