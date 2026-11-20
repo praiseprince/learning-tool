@@ -37,8 +37,8 @@ export type MessageHit = {goal: string; goalName: string; hue: number | null; se
 export function searchMessages(q: string, limit = 8): MessageHit[] {
   ensureChat();
   const words = q.toLowerCase().split(/\s+/).filter(w => w.length > 1).slice(0, 6); if (!words.length) return [];
-  const body = "lower(COALESCE(json_extract(e.payload_json,'$.text'),'') || ' ' || COALESCE(json_extract(e.payload_json,'$.markdown'),''))";
-  const rows = sqlite.prepare(`SELECT e.goal,e.seq,e.kind,e.created_at,j.name,j.hue,${body} AS b,COALESCE(json_extract(e.payload_json,'$.text'),json_extract(e.payload_json,'$.markdown'),'') AS raw
+  const body = "lower(COALESCE(json_extract(e.payload_json,'$.text'),'') || ' ' || COALESCE(json_extract(e.payload_json,'$.markdown'),'') || ' ' || COALESCE((SELECT group_concat(CASE WHEN f.type='object' THEN json_extract(f.value,'$.name') ELSE f.value END,' ') FROM json_each(e.payload_json,'$.files') f),''))";
+  const rows = sqlite.prepare(`SELECT e.goal,e.seq,e.kind,e.created_at,j.name,j.hue,${body} AS b,COALESCE(NULLIF(json_extract(e.payload_json,'$.text'),''),json_extract(e.payload_json,'$.markdown'),'') || COALESCE(' · ' || (SELECT group_concat(CASE WHEN f.type='object' THEN json_extract(f.value,'$.name') ELSE f.value END,', ') FROM json_each(e.payload_json,'$.files') f),'') AS raw
     FROM chat_event e JOIN journey j ON j.id=e.goal WHERE e.kind IN ('user','guide') AND COALESCE(json_extract(e.payload_json,'$.tone'),'')!='error' AND ${words.map(() => `${body} LIKE ? ESCAPE '\\'`).join(" AND ")}
     ORDER BY e.seq DESC LIMIT ?`).all(...words.map(w => `%${w.replace(/[\\%_]/g, c => "\\" + c)}%`), limit) as {goal: string; seq: number; kind: string; created_at: string; name: string; hue: number | null; raw: string}[];
   return rows.map(r => {

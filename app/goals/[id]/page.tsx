@@ -15,8 +15,12 @@ import {currentWeek, doneDays} from "@/lib/agent/week";
 import {nextDays} from "@/lib/agent/tasks";
 import {ago, dayLabel} from "@/lib/v2/when";
 import {GuideButton} from "@/components/chat/find-button";
+import {fileHref, sharedFiles} from "@/lib/chat/files";
+import {sizeLabel} from "@/lib/chat/file-types";
+import {extname} from "@/lib/chat/ext";
+import {fileToMaterial} from "../material-actions";
 
-const TABS = [["plan", "Overview"], ["skills", "Skills"], ["materials", "Materials"], ["notes", "Notes"], ["history", "History"]] as const;
+const TABS = [["plan", "Overview"], ["skills", "Skills"], ["materials", "Materials"], ["notes", "Notes"], ["files", "Files"], ["history", "History"]] as const;
 
 export default async function GoalPage({params, searchParams}: PageProps<"/goals/[id]">) {
   const {id} = await params, q = await searchParams, d = goalDetail(id);
@@ -72,6 +76,21 @@ export default async function GoalPage({params, searchParams}: PageProps<"/goals
         <form action={newNote}><input type="hidden" name="goal" value={id} /><input type="hidden" name="title" value="Untitled note" /><button className="btn btn--quiet btn--sm">New note</button></form>
         {notes.length ? <ul className="rows">{notes.map(n => <li key={n.id}><Link className="row" href={`/notebook/d/${n.id}`}><div className="t">{n.title}</div><div className="m num">{format(new Date(n.updated_at), "d MMM")}</div></Link></li>)}</ul>
           : <p className="muted">No notes for this goal yet.</p>}</div>;
+    })()}
+
+    {tab === "files" && (() => {
+      const files = sharedFiles(id), used = new Set(materials(id).map(m => m.url));
+      return <div className="stack">
+        <p className="hint">Everything you shared in this goal’s chat. The Guide can open any of them again: ask about one by name.</p>
+        {files.length ? <ul className="rows file-rows">{files.map(f => <li key={f.stored}><div className="row">
+          {/* eslint-disable-next-line @next/next/no-img-element -- the learner's own file */}
+          {f.type === "image" ? <img src={fileHref(id, f.stored)} alt="" loading="lazy" /> : <span className="ext" aria-hidden="true">{extname(f.name).slice(1, 5) || "file"}</span>}
+          <div><a className="t" href={fileHref(id, f.stored, true)} title={`Download ${f.name}`}><bdi>{f.name}</bdi></a>
+            <p className="s">{format(new Date(f.at), "d MMM yyyy")} · {sizeLabel(f.size)}{f.said ? <> · “<bdi>{f.said.length > 90 ? f.said.slice(0, 88) + "…" : f.said}</bdi>”</> : null}</p></div>
+          <div className="actions"><Link className="btn btn--text btn--sm" href={`/?goal=${id}&at=${f.seq}#m${f.seq}`}>In the chat</Link>
+            {f.type !== "image" && (used.has(fileHref(id, f.stored)) ? <span className="muted small">In materials</span> : <form action={fileToMaterial.bind(null, id, f.stored)}><button className="btn btn--quiet btn--sm">Add to materials</button></form>)}</div>
+        </div></li>)}</ul> : <p className="muted">No files yet. Drop, paste or attach them in the chat: photos of your work, PDFs, notes or code.</p>}
+      </div>;
     })()}
 
     {tab === "history" && (() => {

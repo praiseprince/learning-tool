@@ -68,6 +68,14 @@ test("files are stored under unique, safe names and documents get a text copy", 
   assert.match(ctx("files.md"), new RegExp(`inbox/${saved[0].stored}.*they wrote “Here are my notes”`));
   assert.match(ctx("conversation.md"), new RegExp(`Here are my notes \\[attached: inbox/${saved[0].stored}`));
   assert.match(ctx("README.md"), /files\.md/);
+
+  const {sharedFiles, fileHref} = await import("../lib/chat/files.ts");
+  const {searchMessages} = await import("../lib/chat/events.ts");
+  const {addMaterial, materials} = await import("../lib/v2/materials.ts");
+  assert.deepEqual(sharedFiles(goal).map(f => f.name).slice(0, 2), ["My notes (v2).md", "photo.png"], "newest message first, files in order, names without folders");
+  assert.match(searchMessages("photo.png")[0]?.snippet ?? "", /my notes · My notes \(v2\)\.md, photo\.png/, "file names are searchable");
+  addMaterial(goal, {title: "My notes", url: fileHref(goal, saved[0].stored)});
+  assert.equal(materials(goal).find(m => m.title === "My notes")?.url, `/api/files/${goal}/${saved[0].stored}`, "a shared file can be a material");
 });
 
 test("every task is told about the attached files", () => {

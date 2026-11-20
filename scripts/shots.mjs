@@ -40,7 +40,7 @@ sqlite.close();
 const routes = [
   ["chat", "/?goal=plato"], ["chat-new", "/?goal=w-new"], ["chat-rtl", "/?goal=w-arabic"],
   ["goals", "/goals"], ["goal", "/goals/plato"], ["goal-skills", "/goals/plato?tab=skills"], ["goal-materials", "/goals/plato?tab=materials"],
-  ["goal-notes", "/goals/plato?tab=notes"], ["goal-history", "/goals/plato?tab=history"], ["goal-long", "/goals/w-hegel"], ["goal-empty", "/goals/w-new"],
+  ["goal-notes", "/goals/plato?tab=notes"], ["goal-files", "/goals/plato?tab=files"], ["goal-history", "/goals/plato?tab=history"], ["goal-long", "/goals/w-hegel"], ["goal-empty", "/goals/w-new"],
   ["new-goal", "/goals/new"], ["revise", "/goals/plato/revise"],
   ["notes", "/notebook"], ["inbox", "/notebook/inbox"], ["note-long", "/notebook/d/w-note-long"],
   ...(note ? [["note", `/notebook/d/${note}`]] : []), ...(source ? [["source", `/notebook/s/${source}`]] : []),

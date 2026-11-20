@@ -766,3 +766,8 @@ body { line-height:1.6; letter-spacing:0; }
 @keyframes found { 0%,40% { box-shadow:0 0 0 2px var(--marker); } 100% { box-shadow:0 0 0 2px transparent; } }
 @media (prefers-reduced-motion:reduce) { .thread > .anchor.found + .msg { animation:none; box-shadow:0 0 0 2px var(--marker); } }
 .pal-who { display:block; font-style:normal; font-size:var(--t-meta); color:var(--muted); }
+.file-rows .row { display:flex; align-items:center; gap:var(--s3); } .file-rows .row > div:nth-child(2) { flex:1; min-width:0; }
+.file-rows img { flex:none; width:36px; height:36px; object-fit:cover; border-radius:6px; border:1px solid var(--rule); }
+.file-rows .t { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink); } .file-rows .s { overflow-wrap:anywhere; }
+.file-rows .actions { flex:none; display:flex; gap:var(--s2); align-items:center; }
+@media (max-width:560px) { .file-rows .row { flex-wrap:wrap; } .file-rows .actions { width:100%; padding-left:calc(36px + var(--s3)); } }

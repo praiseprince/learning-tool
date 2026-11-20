@@ -22,7 +22,7 @@ export function materials(goal: string): Material[] {
 export function material(goal: string, id: string) { return materials(goal).find(m => m.id === id) ?? null; }
 
 const clip = (s: unknown, n: number) => String(s ?? "").trim().slice(0, n);
-const safeUrl = (u: string) => { if (!u) return ""; try { const x = new URL(/^[a-z]+:/i.test(u) ? u : "https://" + u); return /^https?:$/.test(x.protocol) ? x.toString() : ""; } catch { return ""; } };
+const safeUrl = (u: string) => { if (!u) return ""; if (/^\/api\/files\/[A-Za-z0-9_-]+\/[A-Za-z0-9._%-]+$/.test(u)) return u; /* a file the learner shared */ try { const x = new URL(/^[a-z]+:/i.test(u) ? u : "https://" + u); return /^https?:$/.test(x.protocol) ? x.toString() : ""; } catch { return ""; } };
 
 export function addMaterial(goal: string, input: {title: string; kind?: string; creator?: string; url?: string; notes?: string; status?: string; pointer?: string; why?: string; origin?: string}) {
   ensureNotebook();
