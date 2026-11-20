@@ -71,7 +71,7 @@ const UniverseCanvas = forwardRef<CanvasHandle, Props>(function UniverseCanvas(p
     const ring = new Sprite(new SpriteMaterial({map: glow(), color: new Color(light ? "#0f1211" : "#ffffff"), depthWrite: false, transparent: true, opacity: .5})); ring.scale.setScalar(radius * 6); ring.visible = false; group.add(ring);
     const pin = new Sprite(new SpriteMaterial({map: glow(), color: new Color("#d4430e"), depthWrite: false, transparent: true, opacity: 1})); pin.scale.setScalar(radius * 1.6); pin.position.set(radius * .9, radius * .9, 0); pin.visible = pinned.current.has(n.id); group.add(pin);
     const label = new SpriteText(n.label, n.hub ? 10 : 6, light ? "#0f1211" : "#edf0ec");
-    label.fontFace = "Instrument Sans, system-ui, sans-serif"; label.fontWeight = n.hub ? "700" : "500";
+    label.fontFace = "Atkinson Hyperlegible Next, system-ui, sans-serif"; label.fontWeight = n.hub ? "700" : "500";
     label.material.depthWrite = false; label.material.depthTest = false; label.renderOrder = 20; label.backgroundColor = light ? "rgba(243,244,241,.9)" : "rgba(11,14,13,.88)"; label.padding = n.hub ? 2.2 : 1.4; label.borderRadius = 2;
     label.position.y = radius + (n.hub ? 14 : 8); label.visible = !!n.hub; group.add(label);
     if (n.route !== undefined) { const b = new SpriteText(String(n.route + 1), 7, "#ffffff"); b.backgroundColor = "#d4430e"; b.padding = 2; b.borderRadius = 6; b.material.depthTest = false; b.renderOrder = 30; b.position.set(-radius - 4, radius + 4, 0); group.add(b); }

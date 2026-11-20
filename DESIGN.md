@@ -21,7 +21,7 @@ Warm paper, near-black ink, one coral signal. Modelled on the restraint of Claud
 - **Neutrals:** warm off-white page (`--paper`), slightly lighter cards (`--sheet`), a sunk tone for quiet fills, hairline 1px rules. Dark mode is warm charcoal, never blue-grey. No tinted blue anywhere.
 - **Actions:** primary buttons are near-black (`--ink`) with paper-coloured text; secondary are 1px outlined. Radius 8px on controls, 12px on cards. No pills, no glows, no floating shadows (only menus get one soft shadow).
 - **One signal colour:** coral (`--marker`) marks "Now" and "here", focus rings and selection. Nothing else is coloured. Goal hues are only small identity dots and the Map's clusters.
-- **Voice:** the Guide's replies and page titles are serif (Newsreader); controls, labels and numbers are sans (Instrument Sans).
+- **Voice:** the Guide's replies and page titles are serif (Literata, made for long reading on screens); controls, labels and numbers are sans (Atkinson Hyperlegible Next). Every text colour passes WCAG AA on every background in both themes.
 - **Rules for changes:** add no new accent colours, no pill shapes, no gradients, no card shadows. Separate with space first, a hairline second.
 
 Check at 390 / 1440, light and dark, with `scripts/seed-worstcase.mjs` data (long names, emoji, many goals).

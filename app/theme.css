@@ -715,3 +715,24 @@ input,textarea { unicode-bidi:plaintext; }
 .hello .example:focus-visible { outline:2px solid var(--marker); outline-offset:2px; }
 .hello h2 { overflow-wrap:anywhere; }
 @media (max-height:700px) { .hello { padding-block:var(--s4); } .hello h2 { font-size:1.6rem; } .hello li:nth-child(n+3) { display:none; } }
+
+/* v15: easier on the eyes. Every text colour passes WCAG AA on its background (faint ≥ 4.5:1, muted ≥ 7:1),
+   less glare (no pure-white sheets, no near-white text in dark), and a step up in size for small text. */
+:root {
+  --paper:oklch(.965 .008 85); --sheet:oklch(.983 .005 85); --sunk:oklch(.94 .009 85); --stage:oklch(.95 .008 85);
+  --ink:oklch(.24 .01 60); --ink-2:oklch(.33 .01 62); --muted:oklch(.44 .012 68); --faint:oklch(.515 .012 72);
+  --rule:oklch(.885 .009 84); --rule-strong:oklch(.78 .011 82);
+  --t-meta:.8125rem; --t-ui:.9375rem; --t-body:1.0625rem; --t-lead:1.1875rem;
+}
+:root[data-theme='dark'] {
+  --paper:oklch(.215 .006 60); --sheet:oklch(.25 .007 60); --sunk:oklch(.19 .005 60); --stage:oklch(.19 .005 60);
+  --ink:oklch(.9 .008 86); --ink-2:oklch(.84 .008 86); --muted:oklch(.76 .009 82); --faint:oklch(.66 .009 78);
+  --rule:oklch(.32 .007 60); --rule-strong:oklch(.42 .009 60);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) {
+  --paper:oklch(.215 .006 60); --sheet:oklch(.25 .007 60); --sunk:oklch(.19 .005 60); --stage:oklch(.19 .005 60);
+  --ink:oklch(.9 .008 86); --ink-2:oklch(.84 .008 86); --muted:oklch(.76 .009 82); --faint:oklch(.66 .009 78);
+  --rule:oklch(.32 .007 60); --rule-strong:oklch(.42 .009 60);
+} }
+body { line-height:1.6; letter-spacing:0; }
+.msg.guide .md p,.msg.guide .md li { line-height:1.7; }
