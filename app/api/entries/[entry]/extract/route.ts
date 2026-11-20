@@ -1,3 +1,4 @@
+import {refuseUnlessSignedIn} from "@/lib/signed-in";
 import {buildContext} from "@/lib/ai/context";
 import { after } from "next/server";
 import { randomUUID } from "node:crypto";
@@ -6,13 +7,13 @@ import { LogExtraction } from "@/lib/ai/extraction";
 import { codexJson } from "@/lib/ai/codex";
 
 type Context = RouteContext<"/api/entries/[entry]/extract">;
-export async function GET(_: Request, context: Context) {
+export async function GET(_: Request, context: Context) { const no = await refuseUnlessSignedIn(); if (no) return no;
   const { entry } = await context.params;
   const row = sqlite.prepare("SELECT status,json FROM log_extraction WHERE entry_id=?").get(entry) as {status:string;json:string|null} | undefined;
   return Response.json({ status: row?.status ?? "idle", extraction: row?.json && JSON.parse(row.json) });
 }
 
-export async function POST(request: Request, context: Context) {
+export async function POST(request: Request, context: Context) { const no = await refuseUnlessSignedIn(); if (no) return no;
   const { entry } = await context.params;
   const origin = request.headers.get("origin");
   if (origin && new URL(origin).host !== request.headers.get("host")) return new Response(null, {status:403});

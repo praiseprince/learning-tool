@@ -1,4 +1,5 @@
 "use server";
+import {requireSignedIn} from "@/lib/signed-in";
 import {randomUUID} from "node:crypto";
 import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
@@ -22,7 +23,7 @@ const known = (goal: string) => { if (!goalDetail(goal)) throw Error("Goal not f
 /** One message box for everything: it works out whether you want a plan, are logging practice, sharing work, or asking something.
  * While the Guide is busy, a message that needs it waits in the thread and goes as soon as it is free. */
 export async function send(goal: string, data: FormData): Promise<{error?: string; queued?: boolean}> {
-  requireV2(); known(goal);
+  await requireSignedIn(); requireV2(); known(goal);
   const msg = text(data, "text", 4000), files = (data.getAll("files") as File[]).filter(f => f && typeof f === "object" && f.size > 0);
   if (!msg && !files.length) return {error: "Write something first."};
   let shared: Shared[] = [];
@@ -30,39 +31,39 @@ export async function send(goal: string, data: FormData): Promise<{error?: strin
   const r = post(goal, {text: msg, files: shared}); done(); return r;
 }
 export async function quick(goal: string, kind: Quick) {
-  requireV2(); known(goal);
+  await requireSignedIn(); requireV2(); known(goal);
   post(goal, {text: QUICK_TEXT[kind], quick: kind}); done();
 }
 /** Ends the Guide's current session for this goal; the next message starts a fresh one. Memory (the database) is untouched. */
 export async function freshInline(goal: string) {
-  requireV2(); known(goal);
+  await requireSignedIn(); requireV2(); known(goal);
   const {endSession} = await import("@/lib/agent/session"); endSession(goal); addEvent(goal, "fresh", {}); done();
 }
 /** Removes one of your messages and the Guide's replies to it, from the thread and from the Guide's memory. */
 export async function removeInline(goal: string, seq: number): Promise<{error?: string}> {
-  requireV2(); known(goal);
+  await requireSignedIn(); requireV2(); known(goal);
   const {removeExchange} = await import("@/lib/chat/remove"); const r = removeExchange(goal, seq);
   done(); return r.ok ? {} : {error: r.error};
 }
 /** Takes back a message that is still waiting for the Guide. */
-export async function withdrawInline(goal: string, seq: number) { requireV2(); withdraw(goal, seq); done(); }
+export async function withdrawInline(goal: string, seq: number) { await requireSignedIn(); requireV2(); withdraw(goal, seq); done(); }
 export async function pickMinutes(goal: string, minutes: number, note: string) {
-  requireV2(); known(goal);
+  await requireSignedIn(); requireV2(); known(goal);
   if (!Number.isInteger(minutes) || minutes < 5 || minutes > 240) return;
   addEvent(goal, "user", {text: `${minutes} minutes${note && note.length < 80 ? ": " + note : ""}`}); plan(goal, minutes, note); done();
 }
 export async function mark(planId: string, idx: number, result: string) {
-  requireV2();
+  await requireSignedIn(); requireV2();
   if (!["got", "part", "not"].includes(result)) return;
   sqlite.prepare("INSERT OR REPLACE INTO plan_mark VALUES (?,?,?)").run(planId, idx, result);
 }
 export async function finish(goal: string, planId: string, note: string, pointers: Record<string, string> = {}) {
-  requireV2(); known(goal);
+  await requireSignedIn(); requireV2(); known(goal);
   for (const [id, ptr] of Object.entries(pointers)) if (ptr.trim()) { try { updateMaterial(goal, id, {pointer: ptr.trim().slice(0, 140)}); } catch { /* removed */ } }
   saveSession(goal, planId, note.slice(0, 4000)); done();
 }
 export async function acceptInline(goal: string, id: string): Promise<{go?: string}> {
-  requireV2(); known(goal);
+  await requireSignedIn(); requireV2(); known(goal);
   const p = pending(goal).find(x => x.id === id); let go: string | undefined;
   try {
     const {next} = accept(id);
@@ -78,7 +79,7 @@ export async function acceptInline(goal: string, id: string): Promise<{go?: stri
 }
 /** One tap after a failure: the same request again (with the same files), and the failed message loses its button. */
 export async function retryInline(goal: string, seq: number) {
-  requireV2(); known(goal);
+  await requireSignedIn(); requireV2(); known(goal);
   const ev = sqlite.prepare("SELECT payload_json FROM chat_event WHERE seq=? AND goal=? AND kind='guide'").get(seq, goal) as {payload_json: string} | undefined; if (!ev) return;
   const p = JSON.parse(ev.payload_json) as {retry?: {job?: string; plan?: {minutes: number; note: string}}; retried?: boolean}; if (!p.retry || p.retried) return;
   if (runningJob(goal)) return;
@@ -87,28 +88,28 @@ export async function retryInline(goal: string, seq: number) {
   else if (p.retry.job) { const {getJob} = await import("@/lib/agent/jobs"); const j = getJob(p.retry.job); if (j && j.goal === goal) agent(goal, j.kind, j.input); }
   done();
 }
-export async function dismissInline(goal: string, id: string) { requireV2(); dismiss(id); done(); }
+export async function dismissInline(goal: string, id: string) { await requireSignedIn(); requireV2(); dismiss(id); done(); }
 export async function savePointer(goal: string, id: string, data: FormData) {
-  requireV2(); try { updateMaterial(goal, id, {pointer: text(data, "pointer", 140)}); } catch { /* removed */ } done();
+  await requireSignedIn(); requireV2(); try { updateMaterial(goal, id, {pointer: text(data, "pointer", 140)}); } catch { /* removed */ } done();
 }
 export async function cancelJobInline(goal: string, id: string) {
-  requireV2(); const {cancelJob} = await import("@/lib/agent/jobs"); cancelJob(id);
+  await requireSignedIn(); requireV2(); const {cancelJob} = await import("@/lib/agent/jobs"); cancelJob(id);
   addEvent(goal, "guide", {markdown: "Stopped."}); done();
 }
 
 /** The learner accepts a drafted week; it then shapes "Plan today" and shows in the goal panel. */
 export async function acceptWeekInline(goal: string, id: string) {
-  requireV2(); known(goal);
+  await requireSignedIn(); requireV2(); known(goal);
   try { acceptWeek(goal, id); addEvent(goal, "guide", {markdown: "Week saved. **Plan today** now starts from today's slot."}); } catch { /* already handled */ }
   done();
 }
 export async function dismissWeekInline(goal: string, id: string) {
-  requireV2(); known(goal);
+  await requireSignedIn(); requireV2(); known(goal);
   sqlite.prepare("UPDATE proposal SET status='dismissed',resolved_at=? WHERE id=? AND journey_id=? AND kind='week_plan' AND status='pending'").run(new Date().toISOString(), id, goal);
   done();
 }
 export async function redoWeek(goal: string, id: string, note: string) {
-  requireV2(); known(goal);
+  await requireSignedIn(); requireV2(); known(goal);
   if (!weekById(goal, id)) return;
   sqlite.prepare("UPDATE proposal SET status='dismissed',resolved_at=? WHERE id=? AND journey_id=? AND status='pending'").run(new Date().toISOString(), id, goal);
   const n = note.trim().slice(0, 600); post(goal, {text: n ? `Plan the week again: ${n}` : "Plan the week again, differently.", task: {kind: "week", text: n || "Make it different from the last draft."}}); done();
@@ -116,7 +117,7 @@ export async function redoWeek(goal: string, id: string, note: string) {
 
 /** A finished quiz becomes an ordinary session, so what was recalled and missed reaches the skills through the usual review. */
 export async function finishQuiz(goal: string, seq: number, results: ("got" | "not")[]) {
-  requireV2(); known(goal);
+  await requireSignedIn(); requireV2(); known(goal);
   const ev = sqlite.prepare("SELECT payload_json FROM chat_event WHERE seq=? AND goal=? AND kind='quiz'").get(seq, goal) as {payload_json: string} | undefined; if (!ev) return;
   const p = JSON.parse(ev.payload_json) as {title: string; questions: {q: string; skill: string}[]; results?: string[]}; if (p.results) return;
   const r = p.questions.map((_, i) => results[i] === "got" ? "got" : "not"), got = r.filter(x => x === "got").length;
@@ -127,7 +128,7 @@ export async function finishQuiz(goal: string, seq: number, results: ("got" | "n
 
 /** Keeps a Guide answer in the notebook, so the knowledge base grows from conversations too. */
 export async function saveAnswer(goal: string, seq: number): Promise<{doc?: string}> {
-  requireV2(); known(goal);
+  await requireSignedIn(); requireV2(); known(goal);
   const ev = sqlite.prepare("SELECT payload_json FROM chat_event WHERE seq=? AND goal=? AND kind='guide'").get(seq, goal) as {payload_json: string} | undefined; if (!ev) return {};
   const p = JSON.parse(ev.payload_json) as {markdown?: string; sources?: {kind: string; ref: string; quote: string}[]; saved?: string}; if (p.saved) return {doc: p.saved};
   const q = sqlite.prepare("SELECT payload_json FROM chat_event WHERE goal=? AND kind='user' AND seq<? ORDER BY seq DESC LIMIT 1").get(goal, seq) as {payload_json: string} | undefined;
@@ -143,7 +144,7 @@ export async function saveAnswer(goal: string, seq: number): Promise<{doc?: stri
 
 /** From a note: quiz on it in that goal's conversation. */
 export async function fromNote(docId: string, kind: "quiz") {
-  requireV2();
+  await requireSignedIn(); requireV2();
   const d = sqlite.prepare("SELECT title,journey_id FROM document WHERE id=? AND status='active'").get(docId) as {title: string; journey_id: string | null} | undefined;
   if (!d?.journey_id || !goalDetail(d.journey_id)) return;
   const goal = d.journey_id, t = d.title.slice(0, 160);

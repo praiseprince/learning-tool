@@ -1,4 +1,5 @@
 "use server";
+import {requireSignedIn} from "@/lib/signed-in";
 import {randomUUID} from "node:crypto";
 import {after} from "next/server";
 import {redirect} from "next/navigation";
@@ -10,24 +11,24 @@ import {extractRevision,observationSuggestion} from "@/lib/v2/extract";
 import {event} from "@/lib/v2/atlas";
 import {refine, REFINE_MAX} from "@/lib/v2/refine";
 export async function newNote(data:FormData){
- requireV2();const id=randomUUID();
+ await requireSignedIn(); requireV2();const id=randomUUID();
  const goal=String(data.get("goal")||""),journey=goal&&sqlite.prepare("SELECT 1 FROM journey WHERE id=?").get(goal)?goal:null;
  const result=storeDocument({id,base:null,title:String(data.get("title")||"Untitled note"),body:String(data.get("body")||""),kind:String(data.get("kind")||"note"),source:String(data.get("source")||""),journey});
  if(String(data.get("body")||"").trim())after(()=>extractRevision(result.revision));
  redirect("/notebook/d/"+id);
 }
 export async function saveRevision(id:string,base:string,title:string,body:string){
- requireV2();ensureNotebook();
+ await requireSignedIn(); requireV2();ensureNotebook();
  const result=storeDocument({id,base,title,body,kind:"note",journey:null});
  if(result.changed)after(()=>extractRevision(result.revision));
  return result.revision;
 }
 export async function retryRevision(id:string){
- requireV2();ensureNotebook();
+ await requireSignedIn(); requireV2();ensureNotebook();
  await extractRevision(id);revalidatePath("/notebook","layout");
 }
 export async function addSource(data:FormData){
- requireV2();ensureNotebook();
+ await requireSignedIn(); requireV2();ensureNotebook();
  const field=(key:string)=>String(data.get(key)||"").trim();
  const id=randomUUID(),title=field("title"),url=field("url"),kind=field("kind");
  if(!title||title.length>240||!["book","article","video","file","website"].includes(kind)||url&& !/^https?:$/.test(new URL(url).protocol))throw Error("Enter a title and a valid source.");
@@ -38,7 +39,7 @@ export async function addSource(data:FormData){
  })();redirect("/notebook/s/"+id);
 }
 export async function resolveObservation(id:string,data:FormData){
- requireV2();ensureNotebook();
+ await requireSignedIn(); requireV2();ensureNotebook();
  sqlite.transaction(()=>{
   const p=sqlite.prepare("SELECT diff_json,source_ref,status FROM proposal WHERE id=? AND kind='facet_update'").get(id) as {diff_json:string;source_ref:string;status:string}|undefined;
   if(!p||!["pending","deferred","unsupported"].includes(p.status))return;
@@ -71,7 +72,7 @@ export async function resolveObservation(id:string,data:FormData){
 }
 
 export async function undoAccepted(id:string){
- requireV2();ensureNotebook();
+ await requireSignedIn(); requireV2();ensureNotebook();
  sqlite.transaction(()=>{
   const p=sqlite.prepare("SELECT kind,status FROM proposal WHERE id=?").get(id) as {kind:string;status:string}|undefined;
   if(!p||p.status!=="accepted"||!["bridge","facet_update"].includes(p.kind))return;
@@ -97,14 +98,14 @@ export async function undoAccepted(id:string){
 }
 
 export async function setNoteGoal(id:string,goal:string){
- requireV2();ensureNotebook();
+ await requireSignedIn(); requireV2();ensureNotebook();
  const journey=goal&&sqlite.prepare("SELECT 1 FROM journey WHERE id=?").get(goal)?goal:null;
  sqlite.prepare("UPDATE document SET journey_id=? WHERE id=?").run(journey,id);
  revalidatePath("/notebook","layout");
 }
 
 export async function refineNote(text:string){
- requireV2();
+ await requireSignedIn(); requireV2();
  if(!text.trim())return {markdown:text,how:"basic" as const,note:"There is nothing to tidy yet."};
  if(text.length>REFINE_MAX)return {markdown:text,how:"basic" as const,note:"This note is too long to tidy in one go. Split it first."};
  return refine(text);

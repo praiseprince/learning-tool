@@ -1,8 +1,9 @@
+import {refuseUnlessSignedIn} from "@/lib/signed-in";
 import {sqlite} from "@/lib/db/client";
 import {personalTables, workspaceFiles} from "@/lib/db/personal";
 import {zip} from "@/lib/db/zip";
 
-export async function GET(request:Request) {
+export async function GET(request:Request) { const no = await refuseUnlessSignedIn(); if (no) return no;
  const format=new URL(request.url).searchParams.get("format"),markdown=format==="markdown";
  const tables=personalTables().filter(table=>table!=="notebook_search");
  const snapshot=sqlite.transaction(()=>Object.fromEntries(tables.map(table=>[table,sqlite.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all() as Record<string,unknown>[]])))();

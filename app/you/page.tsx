@@ -12,6 +12,7 @@ import {aiModel, aiProvider, installed, PROVIDERS, PROVIDER_NAME} from "@/lib/ai
 import {firecrawlBin, firecrawlUp} from "@/lib/agent/firecrawl";
 import {ensureAgent} from "@/lib/agent/jobs";
 import {CONTINUES, WARM_MS} from "@/lib/agent/session";
+import {Devices} from "@/components/features/devices";
 
 export default async function Settings({searchParams}: PageProps<"/you">) {
   const prefs = preferences(), query = await searchParams;
@@ -32,6 +33,7 @@ export default async function Settings({searchParams}: PageProps<"/you">) {
       <div className="srow"><div><b>Web reading</b><p>{fc ? "Firecrawl Local runs on this computer, with no account or key: the Guide reads whole pages with JavaScript rendered, and suggested links are checked the same way. Nothing is sent to Firecrawl." : firecrawlBin() ? "Firecrawl Local is installed but did not start. The Guide uses its built-in web search instead." : "Firecrawl Local is not installed (it needs Rust: run npm run setup:firecrawl). The Guide uses its built-in web search instead."}</p></div><span className={"status " + (fc ? "on" : "off")}>{fc ? "Connected" : "Off"}</span></div>
       <div className="srow"><div><b>Knowledge base</b><p>What the Guide draws on: {n(kb.notes, "note")}, {n(kb.sessions, "session")} across {n(kb.goals, "goal")}.</p></div><Link className="btn btn--quiet btn--sm" href="/notebook">Open notes</Link></div>
     </div></section>
+    <section id="devices"><h2>Devices</h2><Devices /></section>
     <section id="noticed"><h2>What I have noticed <span className="count">{facts.length || ""}</span></h2><p className="hint">The Guide reads these in every goal. It adds one only when you tap “Remember this” in the chat. Edit or delete anything that is wrong.</p>
       {facts.length === 0 ? <p className="muted">Nothing yet. I note things as you log sessions.</p> :
         <ul className="rows-s facts">{facts.map(f => <li key={f.id}><details><summary><span>{f.text}</span><i>Edit</i></summary>

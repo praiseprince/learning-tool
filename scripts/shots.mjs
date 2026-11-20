@@ -35,6 +35,8 @@ addEvent("plato", "user", {text: "", files: await saveShared("plato", [new File(
 const note = sqlite.prepare("SELECT id FROM document WHERE journey_id='plato' AND status='active' ORDER BY updated_at DESC LIMIT 1").get()?.id;
 const node = sqlite.prepare("SELECT id FROM atlas_node LIMIT 1").get()?.id;
 const source = sqlite.prepare("SELECT id FROM resource LIMIT 1").get()?.id;
+// Sign-in stays on: each browser context signs in with a throwaway PIN, after the sign-in page is captured.
+const {setPin} = await import("../lib/auth.ts"); setPin("2468");
 sqlite.close();
 
 const routes = [
@@ -53,7 +55,7 @@ const problems = [];
 try {
   for (let i = 0; ; i++) {
     if (server.exitCode !== null) throw Error("The screenshot server exited. Run npm run build first.");
-    try { if ((await fetch(base + "/goals")).ok) break; } catch { /* starting */ }
+    try { if ((await fetch(base + "/login")).ok) break; } catch { /* starting */ }
     if (i > 120) throw Error("The screenshot server did not start.");
     await new Promise(r => setTimeout(r, 250));
   }
@@ -61,6 +63,16 @@ try {
   const browser = await chromium.launch();
   for (const [size, width, height] of [["390", 390, 844], ["1280", 1280, 800]]) for (const theme of ["light", "dark"]) {
     const context = await browser.newContext({viewport: {width, height}, colorScheme: theme, reducedMotion: "reduce"});
+    {
+      const page = await context.newPage(); page.on("pageerror", e => problems.push(`login ${size} ${theme}: ${e.message}`));
+      const response = await page.goto(base + "/", {waitUntil: "networkidle"});
+      if (!page.url().includes("/login") || response?.status() !== 200) problems.push(`login: signed-out visit to / did not reach the sign-in page (${page.url()})`);
+      await page.evaluate(() => document.fonts.ready);
+      await page.screenshot({path: `design/current/login-${size}-${theme}.png`});
+      await page.fill("input[name=pin]", "2468"); await page.click("button");
+      await page.waitForURL(u => !u.pathname.startsWith("/login"), {timeout: 15000}).catch(() => problems.push(`login ${size} ${theme}: signing in failed`));
+      await page.close();
+    }
     for (const [name, route] of routes) {
       const page = await context.newPage();
       page.on("pageerror", e => problems.push(`${name} ${size} ${theme}: ${e.message}`));

@@ -61,7 +61,13 @@ The Guide uses the installed Codex CLI by default (`codex login status` to check
 | `DATABASE_URL` | Uses another database file. |
 | `MARGINALIA_WORKSPACES` | Puts the workspaces somewhere other than `data/workspace`. |
 
-**Who can open it.** The server listens on all network interfaces and prints a Wi-Fi address so a phone or iPad on the same network can use it. There is no login: anyone on that network can read and change everything, and make the Guide run on your account. Use it only on a network you trust. `npm run tunnel -- <named-tunnel>` runs a preconfigured Cloudflare Tunnel; use it only behind an identity policy you have tested from a signed-out browser.
+**Signing in.** Every device signs in once with a PIN and stays signed in for 30 days.
+- Set the PIN on the Mac with `node scripts/pin.mjs`. It is stored only as a hash.
+- After five wrong tries, sign-in locks for one minute, then twice as long after each further wrong try, up to a day. `node scripts/pin.mjs --unlock` clears the lock.
+- **Settings → Devices** lists signed-in devices, signs them out, and changes the PIN.
+- `MARGINALIA_AUTH=off` turns sign-in off, for tests only.
+
+**Who can open it.** The server listens on all network interfaces and prints a Wi-Fi address, so a phone or iPad on the same network can open it after signing in. The Wi-Fi address is plain HTTP, so on a shared network someone could capture the PIN as it is sent. Use the tunnel (HTTPS) there instead.
 
 ## Your data
 

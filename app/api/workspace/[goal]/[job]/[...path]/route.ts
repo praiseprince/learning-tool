@@ -1,10 +1,11 @@
+import {refuseUnlessSignedIn} from "@/lib/signed-in";
 import {readFileSync, statSync} from "node:fs";
 import {basename, extname} from "node:path";
 import {inside} from "@/lib/agent/workspace";
 export const dynamic = "force-dynamic";
 const TYPES: Record<string, string> = {".md": "text/markdown", ".txt": "text/plain", ".csv": "text/csv", ".json": "application/json", ".svg": "text/plain", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".pdf": "application/pdf", ".py": "text/plain", ".html": "text/plain"};
 /** Serves files the agent made, always as downloads and never as pages, so nothing it writes can run in your browser. */
-export async function GET(_: Request, ctx: RouteContext<"/api/workspace/[goal]/[job]/[...path]">) {
+export async function GET(_: Request, ctx: RouteContext<"/api/workspace/[goal]/[job]/[...path]">) { const no = await refuseUnlessSignedIn(); if (no) return no;
   const {goal, job, path} = await ctx.params;
   try {
     if (!/^[A-Za-z0-9_-]{1,80}$/.test(job)) return new Response(null, {status: 400});

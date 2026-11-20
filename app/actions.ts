@@ -1,4 +1,5 @@
 "use server";
+import {requireSignedIn} from "@/lib/signed-in";
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -12,7 +13,7 @@ const assessmentSchema=z.object({question:z.string().max(400),summary:z.string()
 function update(id:string,revision:number,state:Interview) {
   return sqlite.prepare("UPDATE interview SET body=?,revision=revision+1 WHERE id=? AND revision=? AND completed=0").run(JSON.stringify(state),id,revision).changes;
 }
-export async function advanceInterview(id:string,revision:number,data:FormData) {
+export async function advanceInterview(id:string,revision:number,data:FormData) { await requireSignedIn();
   if(!z.uuid().safeParse(id).success) throw Error("Invalid interview.");
   const saved=loadInterview(id);
   if(saved?.completed) redirect(`/j/${id}`);

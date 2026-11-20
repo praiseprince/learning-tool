@@ -1,11 +1,12 @@
 "use server";
+import {requireSignedIn} from "@/lib/signed-in";
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { sqlite } from "@/lib/db/client";
 import { requireV2 } from "@/lib/v2/access";
 import { event,insertRelation } from "@/lib/v2/atlas";
 export async function createNode(journey:string,data:FormData) {
-  requireV2();
+  await requireSignedIn(); requireV2();
   const label=String(data.get("label")??"").trim(),kind=String(data.get("kind")),description=String(data.get("description")??"").trim();
   if(!label||label.length>160||description.length>3000||!["concept","skill","topic","question"].includes(kind))throw Error("Check the concept details.");
   const id=randomUUID(),proposal=randomUUID(),now=new Date().toISOString();
@@ -19,7 +20,7 @@ export async function createNode(journey:string,data:FormData) {
   redirect("/atlas/n/"+id);
 }
 export async function linkNodes(source:string,data:FormData) {
-  requireV2();
+  await requireSignedIn(); requireV2();
   const target=String(data.get("target")),kind=String(data.get("kind")),rationale=String(data.get("rationale")??"").trim();
   if(rationale.length>1000)throw Error("Keep the explanation under 1,000 characters.");
   const id=randomUUID(),now=new Date().toISOString();
@@ -31,7 +32,7 @@ export async function linkNodes(source:string,data:FormData) {
 }
 
 export async function assessNode(node:string,data:FormData){
- requireV2();const value=String(data.get("assessment")||"");
+ await requireSignedIn(); requireV2();const value=String(data.get("assessment")||"");
  if(!["unknown","uncertain","developing","comfortable"].includes(value))throw Error("Choose an assessment.");
  const now=new Date().toISOString(),id=randomUUID();
  sqlite.transaction(()=>{
