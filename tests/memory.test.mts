@@ -143,4 +143,5 @@ test("Codex commands read as what they were for", () => {
   assert.equal(commandLabel("'rg -n -i \"barre chord\" context'"), "Searching your files for “barre chord”");
   assert.equal(commandLabel("'rg --files context'"), "Looking through your files");
   assert.equal(commandLabel("'python3 out/j1/make.py'"), "Running: python3 out/j1/make.py");
+  assert.equal(commandLabel(`"tail -35 context/conversation.md\nrg -in 'divided line|sun analogy' context/{notes,sessions.md}"`), "Reading conversation.md · Searching your files for “divided line, sun analogy”");
 });

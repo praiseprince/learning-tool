@@ -59,14 +59,18 @@ const now = () => new Date().toISOString();
 export const pathLabel = (r: string) => r.startsWith("inbox/") ? `your file ${r.slice(6).replace(/^[a-f0-9]{8}-/, "").replace(/\.txt$/, "")}` : r.replace(/^(\.\/)?context\//, "");
 /** What a shell command the agent ran was for, in plain words, when that is clear; otherwise the command itself. */
 export function commandLabel(cmd: string): string {
-  const c = cmd.replace(/^\S*sh -lc\s+/, "").replace(/^'(.*)'$/s, "$1").trim();
+  const c = cmd.replace(/^\S*sh -lc\s+/, "").trim().replace(/^(['"])([\s\S]*)\1$/, "$2").trim();
   const expand = (t: string) => { const m = /^(.*)\{([^{}]+)\}(.*)$/.exec(t); return m ? m[2].split(",").map(x => m[1] + x + m[3]) : [t]; };
-  const paths = [...new Set((c.match(/(?:\.\/)?(?:context|inbox)\/[^\s'";|&><)]+/g) ?? []).flatMap(expand).map(pathLabel).filter(x => x && !/[*?]/.test(x)))];
-  const search = /^\s*(rg|grep)\b/.test(c) && /(?:rg|grep)\s+(?:-[\w-]+\s+)*(?:"([^"]+)"|'([^']+)'|(\S+))/.exec(c);
-  if (search && !/--files\b/.test(c)) return `Searching your files for “${(search[1] ?? search[2] ?? search[3]).slice(0, 60)}”`;
-  if (/^\s*(cat|sed|head|tail|nl|less|wc|pdftotext|awk)\b/.test(c) && paths.length) return `Reading ${paths.slice(0, 4).join(", ")}${paths.length > 4 ? ` and ${paths.length - 4} more` : ""}`;
-  if (/^\s*(ls|rg --files|find|tree)\b/.test(c)) return "Looking through your files";
-  return `Running: ${c.slice(0, 110)}`;
+  const one = (part: string): string | null => {
+    const paths = [...new Set((part.match(/(?:\.\/)?(?:context|inbox)\/[^\s'";|&><)]+/g) ?? []).flatMap(expand).map(pathLabel).filter(x => x && !/[*?]/.test(x)))];
+    const search = /^(rg|grep)\b/.test(part) && !/--files\b/.test(part) && /(?:rg|grep)\s+(?:-[\w-]+(?:\s+\d+)?\s+)*(?:"([^"]+)"|'([^']+)'|(\S+))/.exec(part);
+    if (search) return `Searching your files for “${(search[1] ?? search[2] ?? search[3]).replace(/\|/g, ", ").slice(0, 60)}”`;
+    if (/^(cat|sed|head|tail|nl|less|wc|pdftotext|awk)\b/.test(part) && paths.length) return `Reading ${paths.slice(0, 4).join(", ")}${paths.length > 4 ? ` and ${paths.length - 4} more` : ""}`;
+    if (/^(ls|rg --files|find|tree)\b/.test(part)) return "Looking through your files";
+    return null;
+  };
+  const labels = [...new Set(c.split(/\n|&&|\|\||;/).map(x => x.trim()).filter(Boolean).map(one).filter((x): x is string => !!x))];
+  return labels.length ? labels.slice(0, 2).join(" · ") : `Running: ${c.replace(/\s+/g, " ").slice(0, 110)}`;
 }
 const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u.slice(0, 60); } };
 
@@ -78,7 +82,7 @@ export function codexSteps(e: any): Step[] { // eslint-disable-line @typescript-
   if (e?.type !== "item.completed" || !it) return [];
   if (it.type === "web_search") return !it.query && it.results?.[0]?.domain ? [{at, kind: "open", text: `Reading ${it.results[0].domain}`}] : [];
   if (it.type === "mcp_tool_call") { const a = it.arguments ?? {}; if (it.tool === "read_page" && a.url) return [{at, kind: "open", text: `Reading ${host(String(a.url))}`}]; return []; }
-  if (it.type === "command_execution") { const t = commandLabel(String(it.command ?? "")); return [{at, kind: t.startsWith("Running") ? "run" : t.startsWith("Searching") ? "search" : "open", text: t}]; }
+  if (it.type === "command_execution") { const t = commandLabel(String(it.command ?? "")); return [{at, kind: t.startsWith("Running") ? "run" : t.startsWith("Reading") ? "open" : "search", text: t}]; }
   if (it.type === "file_change") return [{at, kind: "write", text: `Writing ${(it.changes ?? []).map((c: {path?: string}) => String(c.path ?? "").split("/").pop()).filter(Boolean).slice(0, 3).join(", ") || "a file"}`}];
   if (it.type === "agent_message" && it.text && !String(it.text).trim().startsWith("{")) return [{at, kind: "say", text: String(it.text).slice(0, 160)}];
   return [];
