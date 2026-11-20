@@ -1,7 +1,7 @@
 "use client";
 import {useState, useTransition} from "react";
 import {useRouter} from "next/navigation";
-import {acceptInline, acceptWeekInline, dismissInline, dismissWeekInline, finish, finishQuiz, mark, pickMinutes, redoWeek, saveAnswer} from "@/app/chat-actions";
+import {acceptInline, acceptWeekInline, dismissInline, dismissWeekInline, finish, finishQuiz, mark, pickMinutes, redoWeek, retryInline, saveAnswer} from "@/app/chat-actions";
 
 export function MinutesCard({goal, note, active}: {goal: string; note: string; active: boolean}) {
   const [other, setOther] = useState(""), [pending, go] = useTransition();
@@ -95,4 +95,11 @@ export function SaveAnswer({goal, seq, saved}: {goal: string; seq: number; saved
   const [doc, setDoc] = useState(saved), [pending, go] = useTransition();
   if (doc) return <p className="msg-act"><a className="link" href={`/notebook/d/${doc}`}>Saved to notes · Open</a></p>;
   return <p className="msg-act"><button type="button" className="link-btn" disabled={pending} onClick={() => go(async () => { const r = await saveAnswer(goal, seq); if (r.doc) setDoc(r.doc); })}>{pending ? "Saving…" : "Save to notes"}</button></p>;
+}
+
+/** Shown under a failed reply: runs the same request again. */
+export function Retry({goal, seq}: {goal: string; seq: number}) {
+  const [pending, go] = useTransition(), [gone, setGone] = useState(false);
+  if (gone) return null;
+  return <p className="msg-act"><button type="button" className="btn btn--sm" disabled={pending} onClick={() => go(async () => { await retryInline(goal, seq); setGone(true); })}>{pending ? "Starting…" : "Try again"}</button></p>;
 }

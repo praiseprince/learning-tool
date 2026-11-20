@@ -52,7 +52,7 @@ export async function runPlan(goal: string, minutes: number, note: string, seq: 
     const id = sqlite.transaction(() => storePlan(goal, plan, "chat"))();
     updateEvent(seq, "plan", {plan: id});
   } catch {
-    updateEvent(seq, "guide", {markdown: "I couldn't plan that just now. Your goal and map are safe. Try again in a moment.", tone: "error"});
+    updateEvent(seq, "guide", {markdown: "I couldn't plan that just now. Your goal and map are safe.", tone: "error", retry: {plan: {minutes, note}}});
   }
 }
 

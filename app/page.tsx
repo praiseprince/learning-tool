@@ -6,10 +6,12 @@ import {Composer} from "@/components/chat/composer";
 import {GoalPanel} from "@/components/chat/panel";
 import {state} from "@/lib/chat/events";
 import {PanelToggle} from "@/components/chat/panel-toggle";
+import {ensureAgent} from "@/lib/agent/jobs";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home({searchParams}: PageProps<"/">) {
+  ensureAgent(); // closes jobs a restart cut short before anything reads "busy"
   const q = await searchParams, list = goals();
   const pick = typeof q.goal === "string" ? list.find(g => g.id === q.goal) : undefined, goal = pick ?? list[0];
   if (!goal) return <AppShell active="Chat"><div className="page page--read"><h1>Welcome</h1>

@@ -18,7 +18,7 @@ import {goalDetail} from "@/lib/v2/goals";
 import {preferences} from "@/lib/db/personal";
 import {ago} from "@/lib/v2/when";
 import {todaySlot} from "@/lib/agent/week";
-import {MinutesCard, PlanCard, QuizCard, SaveAnswer, SuggestionCard, WeekCard} from "./cards";
+import {MinutesCard, PlanCard, QuizCard, Retry, SaveAnswer, SuggestionCard, WeekCard} from "./cards";
 import {doneDays, weekById} from "@/lib/agent/week";
 import {nextDays} from "@/lib/agent/tasks";
 
@@ -54,6 +54,7 @@ export function Thread({goal}: {goal: string}) {
     if (e.kind === "user") return <div key={e.seq} className="msg user">{e.payload.text ? <p>{String(e.payload.text)}</p> : null}<SharedFiles goal={goal} files={sharedFrom(e.payload)} /></div>;
     if (e.kind === "guide") return <div key={e.seq} className={"msg guide" + (e.payload.tone === "error" ? " error" : "")}><div className="md"><Markdown text={String(e.payload.markdown ?? "")} /></div>
       {e.payload.tone !== "error" && String(e.payload.markdown ?? "").length > 280 && <SaveAnswer goal={goal} seq={e.seq} saved={e.payload.saved} />}
+      {e.payload.tone === "error" && e.payload.retry && !e.payload.retried && !st.busy && <Retry goal={goal} seq={e.seq} />}
       {e.payload.sources?.length ? <details className="sources"><summary>Based on {e.payload.sources.length} {e.payload.sources.length === 1 ? "thing" : "things"} from your history</summary><ul>{e.payload.sources.map((s: {kind: string; ref: string; quote: string}, i: number) => <li key={i}><span className="muted">{s.ref}</span>{s.quote ? <> “{s.quote}”</> : null}</li>)}</ul></details> : null}</div>;
     if (e.kind === "minutes") return <div key={e.seq} className="msg guide"><MinutesCard goal={goal} note={e.payload.note ?? ""} active={e.seq === last} /></div>;
     if (e.kind === "working") return <div key={e.seq} className="msg guide"><p className="working"><i aria-hidden="true" />{e.payload.label}… this takes about 20 seconds.</p></div>;

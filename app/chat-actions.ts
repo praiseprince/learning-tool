@@ -91,6 +91,17 @@ export async function acceptInline(goal: string, id: string): Promise<{go?: stri
   } catch { /* already handled */ }
   done(); return {go};
 }
+/** One tap after a failure: the same request again (with the same files), and the failed message loses its button. */
+export async function retryInline(goal: string, seq: number) {
+  requireV2(); known(goal);
+  const ev = sqlite.prepare("SELECT payload_json FROM chat_event WHERE seq=? AND goal=? AND kind='guide'").get(seq, goal) as {payload_json: string} | undefined; if (!ev) return;
+  const p = JSON.parse(ev.payload_json) as {retry?: {job?: string; plan?: {minutes: number; note: string}}; retried?: boolean}; if (!p.retry || p.retried) return;
+  if (runningJob(goal)) return;
+  updateEvent(seq, "guide", {...p, retried: true});
+  if (p.retry.plan) plan(goal, p.retry.plan.minutes, p.retry.plan.note);
+  else if (p.retry.job) { const {getJob} = await import("@/lib/agent/jobs"); const j = getJob(p.retry.job); if (j && j.goal === goal) agent(goal, j.kind, j.input); }
+  done();
+}
 export async function dismissInline(goal: string, id: string) { requireV2(); dismiss(id); done(); }
 export async function savePointer(goal: string, id: string, data: FormData) {
   requireV2(); try { updateMaterial(goal, id, {pointer: text(data, "pointer", 140)}); } catch { /* removed */ } done();

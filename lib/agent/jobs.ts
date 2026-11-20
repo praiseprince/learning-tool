@@ -12,7 +12,7 @@ import {contextChanges, endSession, recordTurn, resumeNote, sessionToResume} fro
 import {firecrawlUp, firecrawlUrl} from "./firecrawl.ts";
 import {KINDS, LABEL, NEEDS_WEB, SCHEMAS, TIMEOUT_MS, promptFor, stubResult, type JobInput, type JobKind} from "./tasks.ts";
 import {ingest} from "./ingest.ts";
-import {addEvent} from "../chat/events.ts";
+import {addEvent, ensureChat} from "../chat/events.ts";
 
 export type {Step};
 export type Job = {id: string; goal: string; kind: JobKind; status: "running" | "done" | "failed" | "cancelled"; input: JobInput; steps: Step[]; result: unknown; error: string | null; created_at: string; finished_at: string | null};
@@ -28,7 +28,15 @@ export function ensureAgent() {
     CREATE INDEX IF NOT EXISTS agent_job_goal ON agent_job(goal,created_at);`);
   try { sqlite.exec("ALTER TABLE agent_job ADD COLUMN usage_json TEXT"); } catch { /* already there */ }
   // jobs left "running" by a real server restart can never finish: close them honestly, once per process
-  if (!g.__agentBoot) { g.__agentBoot = true; sqlite.prepare("UPDATE agent_job SET status='failed',error='The app restarted while this was running.',finished_at=? WHERE status='running'").run(new Date().toISOString()); }
+  if (!g.__agentBoot) {
+    g.__agentBoot = true; ensureChat();
+    const lost = sqlite.prepare("SELECT id,goal FROM agent_job WHERE status='running'").all() as {id: string; goal: string}[];
+    sqlite.prepare("UPDATE agent_job SET status='failed',error='The app restarted while this was running.',finished_at=? WHERE status='running'").run(new Date().toISOString());
+    for (const j of lost) {
+      sqlite.prepare("UPDATE chat_event SET status='done' WHERE kind='job' AND status='working' AND json_extract(payload_json,'$.job')=?").run(j.id);
+      addEvent(j.goal, "guide", {markdown: "The app restarted while I was working on this, so it never finished. Your data is unchanged.", tone: "error", retry: {job: j.id}});
+    }
+  }
   ready = true;
 }
 const row = (r: Record<string, unknown>): Job => ({id: String(r.id), goal: String(r.goal), kind: r.kind as JobKind, status: r.status as Job["status"], input: JSON.parse(String(r.input_json)), steps: JSON.parse(String(r.steps_json)), result: r.result_json ? JSON.parse(String(r.result_json)) : null, error: (r.error as string) ?? null, created_at: String(r.created_at), finished_at: (r.finished_at as string) ?? null});
@@ -60,12 +68,12 @@ export function startJob(goal: string, kind: JobKind, input: JobInput = {}): str
   const finish = async (ok: boolean, why?: string) => {
     running.delete(id);
     sqlite.prepare("UPDATE chat_event SET status='done' WHERE kind='job' AND status='working' AND json_extract(payload_json,'$.job')=?").run(id);
-    if (!ok) { save(id, {status: "failed", error: why ?? "The Guide could not finish.", steps, finished: true}); addEvent(goal, "guide", {markdown: `${why ?? "I could not finish that."} Your data is unchanged. You can try again.`, tone: "error"}); return; }
+    if (!ok) { save(id, {status: "failed", error: why ?? "The Guide could not finish.", steps, finished: true}); addEvent(goal, "guide", {markdown: `${why ?? "I could not finish that."} Your data is unchanged.`, tone: "error", retry: {job: id}}); return; }
     try {
       const raw = JSON.parse(readFileSync(join(root, "jobs", id, "result.json"), "utf8")), result = SCHEMAS[kind].parse(raw);
       await ingest({id, goal, kind, input}, result as never); // links are checked here; only then is the job done
       save(id, {result, steps, finished: true, status: "done"});
-    } catch (e) { const msg = e instanceof z.ZodError ? "The Guide's answer did not match the expected shape." : String((e as Error).message).slice(0, 200); save(id, {status: "failed", error: msg, steps, finished: true}); addEvent(goal, "guide", {markdown: `${msg} Your data is unchanged. You can try again.`, tone: "error"}); }
+    } catch (e) { const msg = e instanceof z.ZodError ? "The Guide's answer did not match the expected shape." : String((e as Error).message).slice(0, 200); save(id, {status: "failed", error: msg, steps, finished: true}); addEvent(goal, "guide", {markdown: `${msg} Your data is unchanged.`, tone: "error", retry: {job: id}}); }
   };
 
   if (aiProvider() === "stub") {
